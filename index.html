@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forsage — кафе, готель, баня · Ужгород</title>
+<meta name="description" content="Forsage в Ужгороді: затишне кафе з літньою терасою, готель і хостел, фінська баня, банкети та доставка по місту.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#110d08;
+  --bg-2:#1a140c;
+  --card:#211910;
+  --line:rgba(242,193,102,.16);
+  --amber:#e3a33b;
+  --amber-2:#f5c56b;
+  --amber-deep:#b8741c;
+  --cream:#f4e7cd;
+  --muted:#b9a684;
+  --glow:rgba(245,170,60,.35);
+  --radius:18px;
+  --serif:"Cormorant Garamond",Georgia,serif;
+  --sans:"Manrope",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--cream);font-family:var(--sans);font-size:16px;line-height:1.6;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+img{max-width:100%;display:block}
+a{color:inherit;text-decoration:none}
+.wrap{width:min(1180px,100% - 32px);margin-inline:auto}
+
+/* film grain over everything */
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:100;opacity:.06;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* Photo slot: the real photo (--img) sits on top of a warm lamp-like gradient fallback */
+.ph{position:relative;overflow:hidden;background-color:var(--bg-2);
+  background-image:var(--img,none),
+    radial-gradient(ellipse 60% 55% at 30% 25%,rgba(245,180,80,.55),transparent 70%),
+    radial-gradient(ellipse 50% 60% at 80% 80%,rgba(184,116,28,.45),transparent 70%),
+    linear-gradient(160deg,#2a1d0e,#120d07);
+  background-size:cover;background-position:center}
+.ph::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(17,13,8,.75))}
+
+/* ---------- header ---------- */
+.nav{position:fixed;inset:0 0 auto;z-index:50;transition:background .35s,backdrop-filter .35s,border-color .35s;border-bottom:1px solid transparent}
+.nav.scrolled{background:rgba(17,13,8,.82);backdrop-filter:blur(14px);border-color:var(--line)}
+.nav .wrap{display:flex;align-items:center;justify-content:space-between;height:74px;gap:20px}
+.logo{display:flex;align-items:center;gap:12px;font-family:var(--serif);font-size:28px;font-weight:700;letter-spacing:.06em}
+.logo-mark{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 35% 30%,var(--amber-2),var(--amber-deep));color:#1a1108;font-size:20px;box-shadow:0 0 24px var(--glow)}
+.logo small{display:block;font-family:var(--sans);font-size:10px;letter-spacing:.3em;color:var(--muted);font-weight:600;margin-top:-4px}
+.menu{display:flex;gap:30px;font-size:14px;font-weight:500;color:var(--muted)}
+.menu a{transition:color .2s}
+.menu a:hover{color:var(--amber-2)}
+.nav-cta{display:flex;align-items:center;gap:14px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:14px 26px;border-radius:999px;font-weight:600;font-size:15px;transition:transform .2s,box-shadow .25s,background .25s;cursor:pointer;border:0;font-family:inherit}
+.btn-amber{background:linear-gradient(135deg,var(--amber-2),var(--amber));color:#1a1108;box-shadow:0 8px 30px -8px var(--glow)}
+.btn-amber:hover{transform:translateY(-2px);box-shadow:0 14px 40px -8px rgba(245,170,60,.6)}
+.btn-ghost{border:1px solid rgba(245,197,107,.4);color:var(--cream)}
+.btn-ghost:hover{background:rgba(245,197,107,.08)}
+.btn-sm{padding:10px 20px;font-size:14px}
+.burger{display:none;background:none;border:0;color:var(--cream);font-size:26px;cursor:pointer}
+
+/* ---------- hero ---------- */
+.hero{position:relative;min-height:100vh;min-height:100svh;display:flex;align-items:flex-end;padding:140px 0 90px;overflow:hidden}
+.hero-bg{position:absolute;inset:0;--img:url(images/hero.jpg);transform:scale(1.05);animation:slowzoom 22s ease-in-out infinite alternate}
+.hero-bg::after{background:linear-gradient(180deg,rgba(17,13,8,.55) 0%,rgba(17,13,8,.25) 40%,rgba(17,13,8,.95) 100%),radial-gradient(ellipse at 20% 100%,rgba(17,13,8,.8),transparent 60%)}
+@keyframes slowzoom{to{transform:scale(1.14)}}
+.lamp{position:absolute;top:-40px;width:2px;background:linear-gradient(var(--amber-deep),rgba(227,163,59,.2));z-index:2}
+.lamp::after{content:"";position:absolute;left:50%;bottom:-14px;width:22px;height:28px;border-radius:50% 50% 45% 45%;transform:translateX(-50%);background:radial-gradient(circle at 50% 40%,#fff4d6,var(--amber-2) 45%,var(--amber-deep));box-shadow:0 0 40px 12px var(--glow),0 0 120px 40px rgba(245,170,60,.18);animation:flicker 5s infinite}
+.lamp.l1{right:14%;height:150px}
+.lamp.l2{right:24%;height:95px;animation-delay:1.3s}
+.lamp.l3{right:6%;height:70px}
+.lamp.l2::after{animation-delay:1.7s}.lamp.l3::after{animation-delay:.6s}
+@keyframes flicker{0%,100%{opacity:1}47%{opacity:1}48%{opacity:.82}50%{opacity:1}72%{opacity:.93}}
+.hero-content{position:relative;z-index:3;max-width:760px}
+.eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:var(--amber-2);font-weight:600}
+.eyebrow::before{content:"";width:34px;height:1px;background:var(--amber)}
+h1,h2,h3{font-family:var(--serif);font-weight:600;line-height:1.05;letter-spacing:-.01em}
+.hero h1{font-size:clamp(46px,8vw,104px);margin:22px 0 22px}
+.hero h1 em{font-style:italic;color:var(--amber-2);text-shadow:0 0 40px var(--glow)}
+.hero p.lead{font-size:clamp(16px,1.6vw,19px);color:#dccaa6;max-width:560px}
+.hero-actions{display:flex;flex-wrap:wrap;gap:14px;margin-top:36px}
+.hero-meta{display:flex;flex-wrap:wrap;gap:34px;margin-top:54px;padding-top:28px;border-top:1px solid var(--line)}
+.hero-meta div{font-size:13px;color:var(--muted)}
+.hero-meta b{display:block;font-family:var(--serif);font-size:30px;color:var(--cream);font-weight:600}
+
+/* ---------- sections ---------- */
+section{position:relative;padding:120px 0}
+.sec-head{display:flex;justify-content:space-between;align-items:flex-end;gap:30px;margin-bottom:56px;flex-wrap:wrap}
+.sec-head h2{font-size:clamp(38px,5vw,64px);margin-top:14px}
+.sec-head h2 em{color:var(--amber-2);font-style:italic}
+.sec-head p{max-width:420px;color:var(--muted)}
+
+/* marquee */
+.marquee{border-block:1px solid var(--line);padding:22px 0;overflow:hidden;background:var(--bg-2)}
+.marquee-track{display:flex;gap:48px;width:max-content;animation:marq 34s linear infinite;font-family:var(--serif);font-size:26px;font-style:italic;color:var(--muted);white-space:nowrap}
+.marquee-track span::after{content:"✦";margin-left:48px;color:var(--amber);font-style:normal;font-size:16px;vertical-align:middle}
+@keyframes marq{to{transform:translateX(-50%)}}
+
+/* about */
+.about-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:70px;align-items:center}
+.about-photos{position:relative;height:600px}
+.about-photos .ph{position:absolute;border-radius:var(--radius);box-shadow:0 30px 60px -20px rgba(0,0,0,.7)}
+.about-photos .p1{inset:0 22% 18% 0;--img:url(images/interior.jpg)}
+.about-photos .p2{inset:44% 0 0 38%;--img:url(images/terrace.jpg);border:6px solid var(--bg)}
+.badge-round{position:absolute;left:-18px;bottom:40px;z-index:3;width:130px;height:130px;border-radius:50%;display:grid;place-items:center;text-align:center;background:radial-gradient(circle at 35% 30%,var(--amber-2),var(--amber-deep));color:#1a1108;font-family:var(--serif);font-weight:700;font-size:15px;line-height:1.15;box-shadow:0 0 60px var(--glow)}
+.badge-round b{display:block;font-size:40px}
+.about-text h2{font-size:clamp(36px,4.4vw,56px);margin:16px 0 24px}
+.about-text h2 em{color:var(--amber-2)}
+.about-text p{color:#d4c3a2;margin-bottom:16px}
+.features{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:34px}
+.feature{display:flex;gap:14px;align-items:flex-start;padding:18px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(160deg,rgba(245,197,107,.05),transparent)}
+.feature i{font-style:normal;font-size:22px;line-height:1}
+.feature b{display:block;font-size:15px}
+.feature span{font-size:13px;color:var(--muted)}
+
+/* menu */
+.menu-sec{background:radial-gradient(ellipse 70% 50% at 50% 0%,rgba(227,163,59,.09),transparent 70%),var(--bg-2)}
+.tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:40px}
+.tab{padding:10px 20px;border-radius:999px;border:1px solid var(--line);background:none;color:var(--muted);font:500 14px var(--sans);cursor:pointer;transition:all .2s}
+.tab:hover{color:var(--cream);border-color:rgba(245,197,107,.4)}
+.tab.active{background:var(--amber);color:#1a1108;border-color:var(--amber);font-weight:600}
+.dishes{display:grid;grid-template-columns:repeat(3,1fr);gap:26px}
+.dish{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;transition:transform .35s,box-shadow .35s,border-color .35s}
+.dish:hover{transform:translateY(-6px);border-color:rgba(245,197,107,.35);box-shadow:0 24px 50px -20px rgba(0,0,0,.8),0 0 40px -10px var(--glow)}
+.dish .ph{aspect-ratio:4/3}
+.dish .ph::after{background:linear-gradient(180deg,transparent 60%,rgba(33,25,16,.9))}
+.dish-body{padding:22px 24px 26px}
+.dish-top{display:flex;justify-content:space-between;align-items:baseline;gap:14px}
+.dish h3{font-size:26px}
+.price{font-family:var(--serif);font-size:24px;color:var(--amber-2);white-space:nowrap}
+.dish p{font-size:14px;color:var(--muted);margin-top:8px}
+.tag{position:absolute;top:16px;left:16px;z-index:2;padding:5px 12px;border-radius:999px;background:rgba(17,13,8,.75);backdrop-filter:blur(6px);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber-2);font-weight:600;border:1px solid var(--line)}
+.dish.hide{display:none}
+.menu-foot{text-align:center;margin-top:50px}
+
+/* signature */
+.signature{padding:0}
+.sig-card{display:grid;grid-template-columns:1fr 1fr;border-radius:26px;overflow:hidden;border:1px solid var(--line);background:linear-gradient(120deg,#2b1c0b,#171008)}
+.sig-card .ph{min-height:440px;--img:url(images/drink.jpg)}
+.sig-card .ph::after{background:linear-gradient(90deg,transparent 50%,#1f150a)}
+.sig-text{padding:60px 56px;display:flex;flex-direction:column;justify-content:center}
+.sig-text h2{font-size:clamp(40px,5vw,66px);margin:16px 0 18px}
+.sig-text h2 em{color:var(--amber-2);text-shadow:0 0 30px var(--glow)}
+.sig-text p{color:#d4c3a2}
+.sig-ing{display:flex;flex-wrap:wrap;gap:10px;margin:26px 0 32px}
+.sig-ing span{padding:8px 16px;border-radius:999px;border:1px solid rgba(245,197,107,.3);font-size:13px;color:var(--amber-2)}
+
+/* stay */
+.stay-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:26px}
+.stay{position:relative;border-radius:var(--radius);overflow:hidden;min-height:460px;display:flex;align-items:flex-end;border:1px solid var(--line)}
+.stay .ph{position:absolute;inset:0;transition:transform .8s}
+.stay:hover .ph{transform:scale(1.06)}
+.stay .ph::after{background:linear-gradient(180deg,rgba(17,13,8,.1) 20%,rgba(17,13,8,.95))}
+.stay-body{position:relative;z-index:2;padding:30px}
+.stay h3{font-size:34px}
+.stay p{font-size:14px;color:#d4c3a2;margin:8px 0 18px}
+.stay .from{display:flex;align-items:baseline;gap:8px;color:var(--muted);font-size:13px}
+.stay .from b{font-family:var(--serif);font-size:34px;color:var(--amber-2);font-weight:600}
+.stay ul{list-style:none;display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.stay li{font-size:12px;padding:4px 10px;border-radius:999px;background:rgba(245,197,107,.1);color:var(--cream)}
+
+/* gallery */
+.gallery{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:230px;gap:16px}
+.gallery .ph{border-radius:14px;transition:transform .4s,filter .4s;filter:saturate(.9)}
+.gallery .ph:hover{transform:scale(.98);filter:saturate(1.1)}
+.gallery .ph::after{opacity:.5}
+.g1{grid-column:span 2;grid-row:span 2}
+.g4{grid-row:span 2}
+.g6{grid-column:span 2}
+
+/* delivery band */
+.delivery{padding:90px 0}
+.del-card{position:relative;overflow:hidden;border-radius:26px;padding:60px;display:grid;grid-template-columns:1.3fr 1fr;gap:40px;align-items:center;background:linear-gradient(120deg,var(--amber-2),var(--amber) 55%,var(--amber-deep));color:#1a1108}
+.del-card::before{content:"";position:absolute;right:-120px;top:-120px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(255,244,214,.55),transparent 65%)}
+.del-card h2{font-size:clamp(36px,4.5vw,58px)}
+.del-card p{margin-top:14px;font-weight:500;max-width:480px}
+.del-stats{position:relative;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.del-stats div{background:rgba(26,17,8,.1);border:1px solid rgba(26,17,8,.18);border-radius:16px;padding:20px 14px;text-align:center;font-size:12px;font-weight:600}
+.del-stats b{display:block;font-family:var(--serif);font-size:32px;line-height:1.1}
+.btn-dark{background:#1a1108;color:var(--amber-2);margin-top:28px}
+.btn-dark:hover{transform:translateY(-2px);box-shadow:0 14px 30px -10px rgba(0,0,0,.6)}
+
+/* booking / contacts */
+.contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:30px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:44px}
+.panel h3{font-size:36px;margin-bottom:8px}
+.panel > p{color:var(--muted);margin-bottom:28px}
+form{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;font-weight:600}
+input,select{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px 16px;color:var(--cream);font:500 15px var(--sans);outline:none;transition:border-color .2s,box-shadow .2s;color-scheme:dark;width:100%}
+input:focus,select:focus{border-color:var(--amber);box-shadow:0 0 0 4px rgba(227,163,59,.15)}
+.full{grid-column:1/-1}
+form .btn{grid-column:1/-1;margin-top:8px}
+.form-ok{grid-column:1/-1;display:none;padding:14px;border-radius:12px;background:rgba(227,163,59,.12);color:var(--amber-2);text-align:center;font-weight:600}
+.info-list{list-style:none;display:grid;gap:22px;margin-bottom:28px}
+.info-list li{display:flex;gap:16px;align-items:flex-start}
+.info-list .ic{flex:none;width:46px;height:46px;border-radius:12px;display:grid;place-items:center;background:rgba(227,163,59,.12);font-size:20px}
+.info-list small{display:block;font-size:12px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.info-list b{font-size:17px;font-weight:600}
+.map{border-radius:16px;overflow:hidden;height:230px;border:1px solid var(--line)}
+.map iframe{width:100%;height:100%;border:0;filter:grayscale(.3) sepia(.5) brightness(.75) contrast(1.1)}
+.socials{display:flex;gap:10px;margin-top:22px}
+.socials a{padding:10px 18px;border-radius:999px;border:1px solid var(--line);font-size:13px;font-weight:600;transition:all .2s}
+.socials a:hover{border-color:var(--amber);color:var(--amber-2)}
+
+footer{border-top:1px solid var(--line);padding:40px 0;color:var(--muted);font-size:13px}
+footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}
+
+/* reveal */
+.reveal{opacity:0;transform:translateY(30px);transition:opacity .9s ease,transform .9s ease}
+.reveal.in{opacity:1;transform:none}
+
+/* sticky mobile call */
+.m-call{display:none}
+
+/* ---------- responsive ---------- */
+@media (max-width:1024px){
+  .menu{display:none}
+  .burger{display:block}
+  .menu.open{display:flex;position:absolute;top:74px;left:0;right:0;flex-direction:column;gap:0;background:rgba(17,13,8,.97);border-bottom:1px solid var(--line);padding:10px 16px 20px}
+  .menu.open a{padding:14px 0;border-bottom:1px solid var(--line);font-size:16px}
+  .about-grid,.sig-card,.del-card,.contact-grid{grid-template-columns:1fr}
+  .about-photos{height:460px}
+  .dishes,.stay-grid{grid-template-columns:1fr 1fr}
+  .sig-card .ph::after{background:linear-gradient(180deg,transparent 50%,#1f150a)}
+  .gallery{grid-template-columns:repeat(2,1fr);grid-auto-rows:180px}
+  .g6{grid-column:span 2}
+}
+@media (max-width:640px){
+  section{padding:80px 0}
+  .nav-cta .btn{display:none}
+  .hero{padding-bottom:110px}
+  .hero-meta{gap:22px}
+  .hero-meta b{font-size:24px}
+  .lamp.l2,.lamp.l3{display:none}
+  .lamp.l1{right:10%;height:110px}
+  .dishes,.stay-grid,.features{grid-template-columns:1fr}
+  .about-photos{height:380px}
+  .badge-round{width:104px;height:104px;font-size:13px;left:-6px}
+  .badge-round b{font-size:32px}
+  .sig-text,.panel{padding:32px 22px}
+  .sig-card .ph{min-height:300px}
+  .del-card{padding:36px 22px}
+  .del-stats b{font-size:24px}
+  form{grid-template-columns:1fr}
+  .gallery{grid-auto-rows:140px}
+  .g4{grid-row:span 1}
+  .m-call{display:flex;position:fixed;left:16px;right:16px;bottom:14px;z-index:60;box-shadow:0 10px 40px -6px rgba(0,0,0,.8),0 0 30px var(--glow)}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .reveal{opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<header class="nav" id="nav">
+  <div class="wrap">
+    <a href="#top" class="logo">
+      <span class="logo-mark">F</span>
+      <span>FORSAGE<small>УЖГОРОД</small></span>
+    </a>
+    <nav class="menu" id="menu">
+      <a href="#about">Про нас</a>
+      <a href="#food">Меню</a>
+      <a href="#stay">Готель і баня</a>
+      <a href="#gallery">Галерея</a>
+      <a href="#delivery">Доставка</a>
+      <a href="#contacts">Контакти</a>
+    </nav>
+    <div class="nav-cta">
+      <a href="#contacts" class="btn btn-amber btn-sm">Забронювати</a>
+      <button class="burger" id="burger" aria-label="Меню">☰</button>
+    </div>
+  </div>
+</header>
+
+<!-- ============ HERO ============ -->
+<section class="hero" id="top">
+  <div class="hero-bg ph"></div>
+  <span class="lamp l1"></span><span class="lamp l2"></span><span class="lamp l3"></span>
+  <div class="wrap">
+    <div class="hero-content">
+      <span class="eyebrow">Кафе · Готель · Баня</span>
+      <h1>Теплий вечір<br>у <em>Forsage</em></h1>
+      <p class="lead">Затишне кафе з літньою терасою в серці Ужгорода. Європейська, закарпатська та українська кухня, гриль, банкети — і комфортні номери, щоб залишитися до ранку.</p>
+      <div class="hero-actions">
+        <a href="#contacts" class="btn btn-amber">Забронювати столик</a>
+        <a href="#food" class="btn btn-ghost">Переглянути меню →</a>
+      </div>
+      <div class="hero-meta">
+        <div><b>Тераса</b>літній майданчик</div>
+        <div><b>від 1000 ₴</b>номер на ніч</div>
+        <div><b>0 ₴</b>доставка від 800 ₴</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="marquee" aria-hidden="true">
+  <div class="marquee-track">
+    <span>Закарпатська кухня</span><span>Гриль-меню</span><span>Літня тераса</span><span>Банкети</span><span>Фінська баня</span><span>Готель і хостел</span><span>Доставка по Ужгороду</span>
+    <span>Закарпатська кухня</span><span>Гриль-меню</span><span>Літня тераса</span><span>Банкети</span><span>Фінська баня</span><span>Готель і хостел</span><span>Доставка по Ужгороду</span>
+  </div>
+</div>
+
+<!-- ============ ABOUT ============ -->
+<section id="about">
+  <div class="wrap about-grid">
+    <div class="about-photos reveal">
+      <div class="ph p1"></div>
+      <div class="ph p2"></div>
+      <div class="badge-round"><div><b>4 в 1</b>кафе · готель<br>хостел · баня</div></div>
+    </div>
+    <div class="about-text reveal">
+      <span class="eyebrow">Про Forsage</span>
+      <h2>Місце, де хочеться <em>залишитися</em></h2>
+      <p>Forsage — це більше, ніж кафе. Це цілий комплекс для відпочинку: смачна кухня, тепле світло ламп, літня тераса, комфортні номери та справжня фінська баня.</p>
+      <p>Заходьте на сніданок, обід чи вечерю з друзями, святкуйте важливі події в банкетному залі або замовляйте улюблені страви додому.</p>
+      <div class="features">
+        <div class="feature"><i>🍽</i><div><b>Банкетна зала</b><span>дні народження, весілля, корпоративи</span></div></div>
+        <div class="feature"><i>🔥</i><div><b>Гриль-меню</b><span>м'ясо та овочі на живому вогні</span></div></div>
+        <div class="feature"><i>🌿</i><div><b>Літня тераса</b><span>вечори просто неба</span></div></div>
+        <div class="feature"><i>🅿</i><div><b>Критий паркінг</b><span>для гостей комплексу</span></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MENU ============ -->
+<section class="menu-sec" id="food">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div>
+        <span class="eyebrow">Наша кухня</span>
+        <h2>Страви, які <em>гріють</em></h2>
+      </div>
+      <p>Європейська, закарпатська та українська кухня. Готуємо зі свіжих продуктів — у залі, на терасі або з доставкою додому.</p>
+    </div>
+
+    <div class="tabs reveal" id="tabs">
+      <button class="tab active" data-f="all">Усе</button>
+      <button class="tab" data-f="grill">Гриль</button>
+      <button class="tab" data-f="local">Закарпатська</button>
+      <button class="tab" data-f="euro">Європейська</button>
+      <button class="tab" data-f="drinks">Напої</button>
+    </div>
+
+    <div class="dishes">
+      <article class="dish reveal" data-c="local">
+        <div class="ph" style="--img:url(images/dish-1.jpg)"><span class="tag">Хіт</span></div>
+        <div class="dish-body">
+          <div class="dish-top"><h3>Бограч</h3><span class="price">165 ₴</span></div>
+          <p>Густий закарпатський суп з яловичиною, паприкою та картоплею</p>
+        </div>
+      </article>
+      <article class="dish reveal" data-c="grill">
+        <div class="ph" style="--img:url(images/dish-2.jpg)"><span class="tag">Гриль</span></div>
+        <div class="dish-body">
+          <div class="dish-top"><h3>Стейк зі свинини</h3><span class="price">245 ₴</span></div>
+          <p>Соковита шия на грилі з овочами та соусом барбекю</p>
+        </div>
+      </article>
+      <article class="dish reveal" data-c="local">
+        <div class="ph" style="--img:url(images/dish-3.jpg)"></div>
+        <div class="dish-body">
+          <div class="dish-top"><h3>Банош з бринзою</h3><span class="price">175 ₴</span></div>
+          <p>Кукурудзяна каша на сметані зі шкварками та бринзою</p>
+        </div>
+      </article>
+      <article class="dish reveal" data-c="euro">
+        <div class="ph" style="--img:url(images/dish-4.jpg)"></div>
+        <div class="dish-body">
+          <div class="dish-top"><h3>Цезар з куркою</h3><span class="price">185 ₴</span></div>
+          <p>Хрусткий ромен, курка гриль, пармезан та фірмовий соус</p>
+        </div>
+      </article>
+      <article class="dish reveal" data-c="grill">
+        <div class="ph" style="--img:url(images/dish-5.jpg)"><span class="tag">На компанію</span></div>
+        <div class="dish-body">
+          <div class="dish-top"><h3>Гриль-сет «Forsage»</h3><span class="price">890 ₴</span></div>
+          <p>Асорті м'яса, ковбаски, овочі гриль та соуси — на 3–4 особи</p>
+        </div>
+      </article>
+      <article class="dish reveal" data-c="drinks">
+        <div class="ph" style="--img:url(images/drink.jpg)"><span class="tag">Фірмовий</span></div>
+        <div class="dish-body">
+          <div class="dish-top"><h3>Напій «Forsage»</h3><span class="price">95 ₴</span></div>
+          <p>Ананасовий сік, Sprite та сироп бузини — яскраво й освіжаюче</p>
+        </div>
+      </article>
+    </div>
+    <div class="menu-foot reveal"><a href="#contacts" class="btn btn-ghost">Повне меню →</a></div>
+  </div>
+</section>
+
+<!-- ============ SIGNATURE DRINK ============ -->
+<section class="signature">
+  <div class="wrap">
+    <div class="sig-card reveal">
+      <div class="ph"></div>
+      <div class="sig-text">
+        <span class="eyebrow">Фірмовий напій</span>
+        <h2>Спробуйте <em>«Forsage»</em></h2>
+        <p>Вибухова суміш, яку ви не знайдете більше ніде в Ужгороді. Яскравий, ароматний та енергійний — з екзотичними квітковими нотками.</p>
+        <div class="sig-ing"><span>🍍 Ананасовий сік</span><span>🫧 Sprite</span><span>🌸 Сироп бузини</span></div>
+        <div><a href="#food" class="btn btn-amber">До меню напоїв</a></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ STAY ============ -->
+<section id="stay">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div>
+        <span class="eyebrow">Відпочинок</span>
+        <h2>Залишайтесь <em>на ніч</em></h2>
+      </div>
+      <p>Після вечері — у затишний номер. Чисто, тихо, комфортно, а сніданок — за кілька кроків від вас.</p>
+    </div>
+    <div class="stay-grid">
+      <article class="stay reveal">
+        <div class="ph" style="--img:url(images/room.jpg)"></div>
+        <div class="stay-body">
+          <h3>Готель</h3>
+          <p>Затишні номери з усім необхідним для відпочинку та відряджень.</p>
+          <ul><li>Wi-Fi</li><li>Власна ванна</li><li>Паркінг</li></ul>
+          <div class="from">від <b>1000 ₴</b> / ніч</div>
+        </div>
+      </article>
+      <article class="stay reveal">
+        <div class="ph" style="--img:url(images/hostel.jpg)"></div>
+        <div class="stay-body">
+          <h3>Хостел</h3>
+          <p>Сучасний і доступний варіант для мандрівників та компаній.</p>
+          <ul><li>Wi-Fi</li><li>Кухня</li><li>Центр міста</li></ul>
+          <div class="from">вигідні <b>ціни</b></div>
+        </div>
+      </article>
+      <article class="stay reveal">
+        <div class="ph" style="--img:url(images/sauna.jpg)"></div>
+        <div class="stay-body">
+          <h3>Фінська баня</h3>
+          <p>Прогрійтесь після дороги або відпочиньте з друзями.</p>
+          <ul><li>Сауна</li><li>Зона відпочинку</li><li>Для компаній</li></ul>
+          <div class="from">за <b>записом</b></div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ GALLERY ============ -->
+<section id="gallery" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div>
+        <span class="eyebrow">Атмосфера</span>
+        <h2>Тепле світло <em>Forsage</em></h2>
+      </div>
+      <p>Більше фото та новин — в нашому Instagram <a href="https://www.instagram.com/forsage.cafe.uzh/" target="_blank" rel="noopener" style="color:var(--amber-2)">@forsage.cafe.uzh</a></p>
+    </div>
+    <div class="gallery reveal">
+      <div class="ph g1" style="--img:url(images/gallery-1.jpg)"></div>
+      <div class="ph g2" style="--img:url(images/gallery-2.jpg)"></div>
+      <div class="ph g3" style="--img:url(images/gallery-3.jpg)"></div>
+      <div class="ph g4" style="--img:url(images/gallery-4.jpg)"></div>
+      <div class="ph g5" style="--img:url(images/gallery-5.jpg)"></div>
+      <div class="ph g6" style="--img:url(images/gallery-6.jpg)"></div>
+      <div class="ph g7" style="--img:url(images/gallery-7.jpg)"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DELIVERY ============ -->
+<section class="delivery" id="delivery">
+  <div class="wrap">
+    <div class="del-card reveal">
+      <div>
+        <h2>Доставка по Ужгороду</h2>
+        <p>Улюблені страви Forsage — гарячими до ваших дверей. Безконтактна доставка по всьому місту.</p>
+        <a href="#contacts" class="btn btn-dark">Замовити доставку</a>
+      </div>
+      <div class="del-stats">
+        <div><b>100 ₴</b>мін. замовлення</div>
+        <div><b>120 ₴</b>доставка</div>
+        <div><b>800 ₴+</b>безкоштовно</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CONTACTS ============ -->
+<section id="contacts" style="padding-top:30px">
+  <div class="wrap contact-grid">
+    <div class="panel reveal">
+      <span class="eyebrow">Бронювання</span>
+      <h3>Забронювати</h3>
+      <p>Залиште заявку — ми зателефонуємо протягом 15 хвилин.</p>
+      <form id="bookForm">
+        <label class="full">Що бронюєте
+          <select name="type">
+            <option>Столик у кафе</option>
+            <option>Номер у готелі</option>
+            <option>Місце в хостелі</option>
+            <option>Баню</option>
+            <option>Банкет</option>
+          </select>
+        </label>
+        <label>Ім'я<input name="name" required placeholder="Ваше ім'я"></label>
+        <label>Телефон<input name="phone" type="tel" required placeholder="+380"></label>
+        <label>Дата<input name="date" type="date"></label>
+        <label>Гостей<input name="guests" type="number" min="1" value="2"></label>
+        <button class="btn btn-amber" type="submit">Надіслати заявку</button>
+        <div class="form-ok" id="formOk">Дякуємо! Ми скоро з вами зв'яжемося ✦</div>
+      </form>
+    </div>
+
+    <div class="panel reveal">
+      <span class="eyebrow">Контакти</span>
+      <h3>Як нас знайти</h3>
+      <p>Чекаємо на вас щодня.</p>
+      <ul class="info-list">
+        <li><span class="ic">📍</span><div><small>Адреса</small><b>вул. Бородіна, 15, Ужгород</b></div></li>
+        <li><span class="ic">📞</span><div><small>Телефон</small><b>+380 XX XXX XX XX</b></div></li>
+        <li><span class="ic">🕘</span><div><small>Графік кафе</small><b>Щодня 09:00 – 23:00</b></div></li>
+      </ul>
+      <div class="map">
+        <iframe loading="lazy" title="Карта" src="https://www.google.com/maps?q=%D0%B2%D1%83%D0%BB.%20%D0%91%D0%BE%D1%80%D0%BE%D0%B4%D1%96%D0%BD%D0%B0%2C%2015%2C%20%D0%A3%D0%B6%D0%B3%D0%BE%D1%80%D0%BE%D0%B4&output=embed"></iframe>
+      </div>
+      <div class="socials">
+        <a href="https://www.instagram.com/forsage.cafe.uzh/" target="_blank" rel="noopener">Instagram</a>
+        <a href="https://www.facebook.com/Forsage.cafe.uzh/" target="_blank" rel="noopener">Facebook</a>
+        <a href="#">Viber</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <a href="#top" class="logo" style="font-size:22px"><span class="logo-mark" style="width:30px;height:30px;font-size:16px">F</span>FORSAGE</a>
+    <span>© 2026 Forsage · Кафе · Готель · Хостел · Баня · Ужгород</span>
+  </div>
+</footer>
+
+<a href="tel:+380000000000" class="btn btn-amber m-call">📞 Зателефонувати</a>
+
+<script>
+// header background on scroll
+const nav=document.getElementById('nav');
+const onScroll=()=>nav.classList.toggle('scrolled',scrollY>40);
+addEventListener('scroll',onScroll,{passive:true});onScroll();
+
+// mobile menu
+const menu=document.getElementById('menu');
+document.getElementById('burger').onclick=()=>menu.classList.toggle('open');
+menu.querySelectorAll('a').forEach(a=>a.onclick=()=>menu.classList.remove('open'));
+
+// reveal on scroll
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+// menu filter
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  document.querySelectorAll('.dish').forEach(d=>d.classList.toggle('hide',t.dataset.f!=='all'&&d.dataset.c!==t.dataset.f));
+});
+
+// demo booking form
+document.getElementById('bookForm').onsubmit=e=>{
+  e.preventDefault();
+  document.getElementById('formOk').style.display='block';
+  e.target.reset();
+};
+</script>
+</body>
+</html>
