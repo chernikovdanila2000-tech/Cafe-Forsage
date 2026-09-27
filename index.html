@@ -42,6 +42,9 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:100;op
     linear-gradient(160deg,#262420,#161513);
   background-size:cover;background-position:center}
 .ph::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(18,17,16,.75))}
+/* label shown only while the photo file is missing */
+.ph.empty::before{content:"ваші фото";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:1;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:rgba(241,236,226,.32);white-space:nowrap;pointer-events:none}
+.hero-bg.empty::before{top:auto;bottom:28px;left:auto;right:24px;transform:none}
 
 /* ---------- header ---------- */
 .nav{position:fixed;inset:0 0 auto;z-index:50;transition:background .35s,backdrop-filter .35s,border-color .35s;border-bottom:1px solid transparent}
@@ -561,6 +564,15 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
   t.classList.add('active');
   document.querySelectorAll('.dish').forEach(d=>d.classList.toggle('hide',t.dataset.f!=='all'&&d.dataset.c!==t.dataset.f));
+});
+
+// mark photo slots whose image file is missing
+document.querySelectorAll('.ph').forEach(el=>{
+  const m=getComputedStyle(el).getPropertyValue('--img').match(/url\(["']?([^"')]+)/);
+  if(!m){el.classList.add('empty');return}
+  const img=new Image();
+  img.onerror=()=>el.classList.add('empty');
+  img.src=m[1];
 });
 
 // demo booking form
