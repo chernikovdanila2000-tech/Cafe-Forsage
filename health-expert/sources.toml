@@ -1,0 +1,18 @@
+# Реестр источников НПА. Точный перечень (~1000 документов) согласуется с заказчиком.
+# Каждый документ задаётся кодом adilet.zan.kz; русская и казахская версии связываются по коду.
+# Строки ниже — примеры формата, перечень заполняется после согласования.
+
+[[source]]
+id = "adilet"
+title = "Эталонный контрольный банк НПА РК (adilet.zan.kz)"
+base_url = "https://adilet.zan.kz"
+url_ru = "https://adilet.zan.kz/rus/docs/{code}"
+url_kk = "https://adilet.zan.kz/kaz/docs/{code}"
+enabled = true
+
+# Пример записи документа:
+# [[document]]
+# source = "adilet"
+# code = "K2000000360"          # Кодекс «О здоровье народа и системе здравоохранения»
+# organ = "Министерство здравоохранения РК"
+# block = "health"              # health | social | fsms | other

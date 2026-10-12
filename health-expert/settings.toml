@@ -1,0 +1,42 @@
+# Настройки экспертной системы. Все параметры хранятся локально у заказчика.
+
+[storage]
+db_path = "var/expert.db"
+
+[llm]
+# "anthropic" — внешняя модель через API; "offline" — локальный экстрактивный режим без модели
+# (используется для демонстрации, тестов и как деградация при недоступности модели).
+provider = "offline"
+model = "claude-opus-5-5"
+# Модель для независимой проверки обоснованности (второй проход).
+verifier_model = "claude-opus-5-5"
+# Серверный fallback при отказе модели (Claude API).
+server_fallback = true
+timeout_seconds = 60
+
+[mode]
+# "fast" — FAQ/эталоны + базовая проверка; "accurate" — расширенный поиск, проверка обоснованности и сверка языков.
+default = "fast"
+fast_top_k = 5
+accurate_top_k = 12
+# Порог сходства с эталонным ответом для повторного использования (0..1).
+reference_reuse_similarity = 0.82
+
+[confidence]
+# Ниже caution — ответ помечается «требует осторожности»; ниже escalate — не выдаётся, вопрос передаётся человеку.
+caution = 0.70
+escalate = 0.45
+
+[review]
+# Доля ответов с нормальной уверенностью, случайно отправляемых на экспертную проверку.
+sample_rate = 0.10
+
+[answer]
+# Вариант ответа по умолчанию: simple | refs | quotes. Оператор может переключить для каждого вопроса.
+default_variant = "refs"
+
+[update]
+# Периодичность проверки источников (для планировщика), часов.
+interval_hours = 24
+request_delay_seconds = 1.0
+user_agent = "HealthExpertBot/0.1 (+contact: admin)"

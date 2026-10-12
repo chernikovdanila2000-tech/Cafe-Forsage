@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Экспертная система</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">Экспертная система менеджера здравоохранения</div>
+  <nav id="tabs">
+    <button data-tab="request" class="active">Обращение</button>
+    <button data-tab="review" data-perm="review">Проверка</button>
+    <button data-tab="faq">FAQ</button>
+    <button data-tab="docs">База НПА</button>
+    <button data-tab="admin" data-perm="admin">Администрирование</button>
+  </nav>
+  <div class="who"><span id="who"></span> <button id="logout" class="link">выйти</button></div>
+</header>
+
+<section id="login" class="panel narrow" hidden>
+  <h2>Вход</h2>
+  <p class="muted">Введите токен доступа. Демо: <code>operator-demo</code>, <code>validator-demo</code>, <code>admin-demo</code>.</p>
+  <form id="login-form"><input id="token" placeholder="Токен" autocomplete="off" required><button>Войти</button></form>
+</section>
+
+<main id="app" hidden>
+  <section id="tab-request" class="tab">
+    <div class="panel">
+      <h2>Текст обращения или жалобы</h2>
+      <textarea id="appeal" rows="8" placeholder="Вставьте текст обращения на русском или казахском языке"></textarea>
+      <div class="row">
+        <label>Язык <select id="lang"><option value="">авто</option><option value="ru">русский</option><option value="kk">қазақша</option></select></label>
+        <label>Режим <select id="mode"><option value="">по умолчанию</option><option value="fast">быстрый</option><option value="accurate">точный</option></select></label>
+        <label>Нормы на дату <input type="date" id="as-of"></label>
+        <button id="run" class="primary">Подготовить черновик</button>
+      </div>
+      <p class="muted small">Персональные данные обезличиваются до обработки моделью. Ответ остаётся черновиком: система ничего не отправляет заявителю.</p>
+    </div>
+    <div id="result"></div>
+  </section>
+
+  <section id="tab-review" class="tab" hidden>
+    <div class="panel"><h2>Очередь проверки</h2><p class="muted small">Сначала — ответы с низкой оценкой самопроверки, затем случайная выборка.</p><div id="queue"></div></div>
+    <div class="panel"><h2>Отчёт по качеству</h2><div id="report"></div></div>
+  </section>
+
+  <section id="tab-faq" class="tab" hidden>
+    <div class="panel"><div class="row"><h2 class="grow">FAQ</h2><button id="faq-build" data-perm="faq">Сформировать кандидатов</button></div><div id="faq"></div></div>
+  </section>
+
+  <section id="tab-docs" class="tab" hidden>
+    <div class="panel"><h2>Документы</h2><div id="docs"></div></div>
+    <div class="panel"><h2>Поиск по нормам</h2>
+      <div class="row"><input id="q" class="grow" placeholder="Запрос"><select id="q-lang"><option value="ru">ru</option><option value="kk">kk</option></select><input type="date" id="q-date"><button id="q-run">Найти</button></div>
+      <div id="hits"></div></div>
+  </section>
+
+  <section id="tab-admin" class="tab" hidden>
+    <div class="panel"><h2>Состояние</h2><div id="status"></div>
+      <div class="row"><label>Режим работы <select id="admin-mode"><option value="fast">быстрый</option><option value="accurate">точный</option></select></label>
+      <button id="save-mode">Сохранить</button><button id="run-update">Проверить источники сейчас</button><button id="run-regression">Регрессионный тест</button></div>
+    </div>
+    <div class="panel"><h2>Уведомления и журнал обновлений</h2><div id="log"></div></div>
+  </section>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>
