@@ -1,4 +1,4 @@
-// Мобильное меню
+// Мобільне меню
 const toggle = document.querySelector('.nav-toggle');
 if (toggle) {
   toggle.addEventListener('click', () => {
@@ -13,7 +13,7 @@ if (toggle) {
   );
 }
 
-// Тест в конце урока: проверка ответов прямо на странице
+// Тест наприкінці уроку: перевірка відповідей просто на сторінці
 document.querySelectorAll('[data-quiz]').forEach((form) => {
   const result = form.querySelector('.quiz-result');
   form.addEventListener('submit', (event) => {
@@ -32,9 +32,8 @@ document.querySelectorAll('[data-quiz]').forEach((form) => {
       );
     });
     const all = correct === questions.length;
-    result.textContent = all
-      ? `Превосходно! ${correct} из ${questions.length} — все ответы верны.`
-      : `Правильно ${correct} из ${questions.length}. Верные варианты подсвечены — попробуйте ещё раз.`;
+    const template = all ? window.I18N.allRight : window.I18N.some;
+    result.textContent = template.replace('{correct}', correct).replace('{total}', questions.length);
     result.style.color = all ? 'var(--success)' : 'var(--danger)';
   });
   form.addEventListener('change', () => {

@@ -72,6 +72,7 @@ db.exec(`
 `);
 
 // Уроки хранятся в lessons.js и синхронизируются с базой при каждом запуске.
+// В базу пишется украинская версия; на сайте тексты берутся из lessons.js на нужном языке.
 const upsertLesson = db.prepare(`
   INSERT INTO lessons (id, slug, module, level, title, summary, duration, price, is_free, theory, vocabulary, exercises, position)
   VALUES (:id, :slug, :module, :level, :title, :summary, :duration, :price, :is_free, :theory, :vocabulary, :exercises, :position)
@@ -84,14 +85,14 @@ lessons.forEach((l, i) => {
   upsertLesson.run({
     id: l.id,
     slug: l.slug,
-    module: l.module,
+    module: l.module.uk,
     level: l.level,
-    title: l.title,
-    summary: l.summary,
+    title: l.title.uk,
+    summary: l.summary.uk,
     duration: l.duration,
     price: l.price,
     is_free: l.free ? 1 : 0,
-    theory: l.theory,
+    theory: l.theory.uk,
     vocabulary: JSON.stringify(l.vocabulary),
     exercises: JSON.stringify(l.exercises),
     position: i,
@@ -234,7 +235,7 @@ const payments = {
   },
   all() {
     return db.prepare(`
-      SELECT p.*, l.title AS lesson_title, u.name AS user_name, u.email AS user_email
+      SELECT p.*, l.title AS lesson_title, u.name AS user_name, u.email AS user_email, u.phone AS user_phone
       FROM payments p JOIN lessons l ON l.id = p.lesson_id JOIN users u ON u.id = p.user_id
       ORDER BY (p.status = 'pending') DESC, p.created_at DESC, p.id DESC
     `).all();
@@ -263,9 +264,9 @@ function ensureAdmin() {
     return;
   }
   const password = process.env.ADMIN_PASSWORD || crypto.randomBytes(9).toString('base64url');
-  users.create({ name: 'Администратор', email, password, level: 'C1', isAdmin: true });
+  users.create({ name: 'Адміністратор', email, password, level: 'C1', isAdmin: true });
   if (!process.env.ADMIN_PASSWORD) {
-    console.log(`\n  Создан администратор: ${email}\n  Пароль: ${password}\n  (сохраните его — он показывается один раз)\n`);
+    console.log(`\n  Створено адміністратора: ${email}\n  Пароль: ${password}\n  (збережіть його — він показується один раз)\n`);
   }
 }
 

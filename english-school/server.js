@@ -1,7 +1,7 @@
 // Встроенная база SQLite есть только в Node.js 22.13+. На старой версии сразу говорим, что делать.
 const [major, minor] = process.versions.node.split('.').map(Number);
 if (major < 22 || (major === 22 && minor < 13)) {
-  console.error(`\n  Нужен Node.js 22.13 или новее, сейчас установлен ${process.version}.\n  Скачайте актуальную LTS-версию: https://nodejs.org\n`);
+  console.error(`\n  Потрібен Node.js 22.13 або новіший, зараз встановлено ${process.version}.\n  Завантажте актуальну LTS-версію: https://nodejs.org\n`);
   process.exit(1);
 }
 
@@ -18,6 +18,7 @@ const express = require('express');
 const config = require('./config');
 const db = require('./db');
 const views = require('./views');
+const { t, LANGS, DEFAULT_LANG } = require('./i18n');
 
 db.ensureAdmin();
 db.sessions.cleanup();
@@ -29,6 +30,7 @@ app.use(express.urlencoded({ extended: false, limit: '20kb' }));
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
 
 const COOKIE = 'sid';
+const LANG_COOKIE = 'lang';
 
 // ---------- Сессии ----------
 
@@ -52,6 +54,8 @@ function startSession(res, userId) {
 
 app.use((req, res, next) => {
   req.user = db.sessions.user(readCookie(req, COOKIE));
+  const lang = readCookie(req, LANG_COOKIE);
+  req.lang = LANGS.includes(lang) ? lang : DEFAULT_LANG;
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'same-origin');
@@ -61,6 +65,21 @@ app.use((req, res, next) => {
 // Пускаем дальше только по ссылкам внутри сайта, чтобы ?next= нельзя было увести на чужой домен.
 const safeNext = (value) => (typeof value === 'string' && /^\/(?![/\\])/.test(value) ? value : '/dashboard');
 
+// Перемикач мови: запам'ятовуємо вибір у cookie й повертаємо на ту саму сторінку.
+app.get('/lang/:code', (req, res) => {
+  const lang = LANGS.includes(req.params.code) ? req.params.code : DEFAULT_LANG;
+  res.cookie(LANG_COOKIE, lang, { sameSite: 'lax', secure: config.secureCookies, maxAge: 365 * 24 * 60 * 60 * 1000 });
+  let back = '/';
+  try {
+    const referer = new URL(req.get('referer') || '', `${req.protocol}://${req.get('host')}`);
+    if (referer.host === req.get('host')) {
+      referer.searchParams.delete('msg');
+      back = referer.pathname + referer.search;
+    }
+  } catch {}
+  res.redirect(back);
+});
+
 function requireUser(req, res, next) {
   if (req.user) return next();
   res.redirect(`/login?msg=login_required&next=${encodeURIComponent(req.originalUrl)}`);
@@ -68,7 +87,7 @@ function requireUser(req, res, next) {
 
 function requireAdmin(req, res, next) {
   if (req.user?.is_admin) return next();
-  res.status(404).send(views.notFound({ user: req.user }));
+  res.status(404).send(views.notFound({ lang: req.lang, user: req.user }));
 }
 
 const field = (value, max = 200) => String(value ?? '').trim().slice(0, max);
@@ -77,7 +96,7 @@ const isEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 // ---------- Публичные страницы ----------
 
 app.get('/', (req, res) => {
-  res.send(views.home({ user: req.user, msg: req.query.msg, lessons: db.lessons.all() }));
+  res.send(views.home({ lang: req.lang, user: req.user, msg: req.query.msg, lessons: db.lessons.all() }));
 });
 
 app.post('/request', (req, res) => {
@@ -91,7 +110,7 @@ app.post('/request', (req, res) => {
 
 app.get('/register', (req, res) => {
   if (req.user) return res.redirect('/dashboard');
-  res.send(views.authPage({ mode: 'register', msg: req.query.msg }));
+  res.send(views.authPage({ lang: req.lang, mode: 'register', msg: req.query.msg }));
 });
 
 app.post('/register', (req, res) => {
@@ -99,15 +118,16 @@ app.post('/register', (req, res) => {
     name: field(req.body.name, 80),
     email: field(req.body.email, 120).toLowerCase(),
     phone: field(req.body.phone, 30),
-    level: views.LEVELS[req.body.level] ? req.body.level : 'A1',
+    level: views.LEVEL_CODES.includes(req.body.level) ? req.body.level : 'A1',
   };
   const password = String(req.body.password || '');
-  const fail = (error) => res.status(400).send(views.authPage({ mode: 'register', error, values }));
+  const fail = (key) => res.status(400).send(views.authPage({ lang: req.lang, mode: 'register', error: t(req.lang, key), values }));
 
-  if (!values.name) return fail('Укажите имя.');
-  if (!isEmail(values.email)) return fail('Проверьте email — кажется, в нём ошибка.');
-  if (password.length < 8) return fail('Пароль должен быть не короче 8 символов.');
-  if (db.users.byEmail(values.email)) return fail('Аккаунт с таким email уже существует. Попробуйте войти.');
+  if (!values.name) return fail('err.name');
+  if (!isEmail(values.email)) return fail('err.email');
+  if (!values.phone) return fail('err.phone');
+  if (password.length < 8) return fail('err.password');
+  if (db.users.byEmail(values.email)) return fail('err.exists');
 
   const userId = db.users.create({ ...values, password });
   startSession(res, userId);
@@ -116,7 +136,7 @@ app.post('/register', (req, res) => {
 
 app.get('/login', (req, res) => {
   if (req.user) return res.redirect(safeNext(req.query.next));
-  res.send(views.authPage({ mode: 'login', msg: req.query.msg, next: req.query.next }));
+  res.send(views.authPage({ lang: req.lang, mode: 'login', msg: req.query.msg, next: req.query.next }));
 });
 
 app.post('/login', (req, res) => {
@@ -124,7 +144,7 @@ app.post('/login', (req, res) => {
   const user = db.users.authenticate(email, String(req.body.password || ''));
   if (!user) {
     return res.status(401).send(views.authPage({
-      mode: 'login', error: 'Неверный email или пароль.', values: { email }, next: req.body.next,
+      lang: req.lang, mode: 'login', error: t(req.lang, 'err.login'), values: { email }, next: req.body.next,
     }));
   }
   startSession(res, user.id);
@@ -142,6 +162,7 @@ app.post('/logout', (req, res) => {
 
 app.get('/dashboard', requireUser, (req, res) => {
   res.send(views.dashboard({
+    lang: req.lang,
     user: req.user,
     msg: req.query.msg,
     lessons: db.lessons.forUser(req.user.id),
@@ -150,16 +171,16 @@ app.get('/dashboard', requireUser, (req, res) => {
 });
 
 app.get('/account', requireUser, (req, res) => {
-  res.send(views.account({ user: req.user, msg: req.query.msg }));
+  res.send(views.account({ lang: req.lang, user: req.user, msg: req.query.msg }));
 });
 
 app.post('/account', requireUser, (req, res) => {
   const name = field(req.body.name, 80);
-  if (!name) return res.status(400).send(views.account({ user: req.user, error: 'Имя не может быть пустым.' }));
+  if (!name) return res.status(400).send(views.account({ lang: req.lang, user: req.user, error: t(req.lang, 'err.nameEmpty') }));
   db.users.updateProfile(req.user.id, {
     name,
     phone: field(req.body.phone, 30),
-    level: views.LEVELS[req.body.level] ? req.body.level : req.user.level,
+    level: views.LEVEL_CODES.includes(req.body.level) ? req.body.level : req.user.level,
   });
   res.redirect('/account?msg=profile_saved');
 });
@@ -167,10 +188,10 @@ app.post('/account', requireUser, (req, res) => {
 app.post('/account/password', requireUser, (req, res) => {
   const password = String(req.body.password || '');
   if (!db.users.authenticate(req.user.email, String(req.body.current || ''))) {
-    return res.status(400).send(views.account({ user: req.user, error: 'Текущий пароль указан неверно.' }));
+    return res.status(400).send(views.account({ lang: req.lang, user: req.user, error: t(req.lang, 'err.currentPassword') }));
   }
   if (password.length < 8) {
-    return res.status(400).send(views.account({ user: req.user, error: 'Новый пароль должен быть не короче 8 символов.' }));
+    return res.status(400).send(views.account({ lang: req.lang, user: req.user, error: t(req.lang, 'err.newPassword') }));
   }
   db.users.updatePassword(req.user.id, password);
   res.redirect('/account?msg=password_changed');
@@ -180,7 +201,7 @@ app.post('/account/password', requireUser, (req, res) => {
 
 function loadLesson(req, res, next) {
   const lesson = db.lessons.byId(Number(req.params.id));
-  if (!lesson) return res.status(404).send(views.notFound({ user: req.user }));
+  if (!lesson) return res.status(404).send(views.notFound({ lang: req.lang, user: req.user }));
   req.lesson = lesson;
   next();
 }
@@ -190,6 +211,7 @@ app.get('/lessons/:id', requireUser, loadLesson, (req, res) => {
   const list = db.lessons.forUser(user.id);
   const index = list.findIndex((l) => l.id === lesson.id);
   res.send(views.lessonPage({
+    lang: req.lang,
     user,
     msg: req.query.msg,
     lesson,
@@ -224,14 +246,14 @@ app.get('/pay/:id', requireUser, loadLesson, (req, res) => {
   if (db.lessons.hasAccess(user, lesson)) return res.redirect(`/lessons/${lesson.id}`);
   const payment = db.payments.create(user.id, lesson.id, lesson.price);
   if (config.paymentUrl) return res.redirect(buildPaymentUrl(payment, lesson, user));
-  res.send(views.demoCheckout({ user, lesson, payment }));
+  res.send(views.demoCheckout({ lang: req.lang, user, lesson, payment }));
 });
 
 // Демо-оплата работает, только пока не указан PAYMENT_URL.
 app.post('/pay/demo/:paymentId', requireUser, (req, res) => {
   const payment = db.payments.byId(Number(req.params.paymentId));
   if (config.paymentUrl || !payment || payment.user_id !== req.user.id) {
-    return res.status(404).send(views.notFound({ user: req.user }));
+    return res.status(404).send(views.notFound({ lang: req.lang, user: req.user }));
   }
   db.payments.markPaid(payment.id);
   res.redirect(`/lessons/${payment.lesson_id}?msg=paid`);
@@ -246,6 +268,7 @@ app.get('/payment/success', requireUser, (req, res) => {
 
 app.get('/admin', requireUser, requireAdmin, (req, res) => {
   res.send(views.admin({
+    lang: req.lang,
     user: req.user,
     msg: req.query.msg,
     users: db.users.all(),
@@ -264,17 +287,17 @@ app.post('/admin/payments/:id/cancel', requireUser, requireAdmin, (req, res) => 
   res.redirect('/admin?msg=cancelled');
 });
 
-app.use((req, res) => res.status(404).send(views.notFound({ user: req.user })));
+app.use((req, res) => res.status(404).send(views.notFound({ lang: req.lang, user: req.user })));
 
 app.use((err, req, res, next) => {
   console.error(err);
-  res.status(500).send('Что-то пошло не так. Попробуйте обновить страницу.');
+  res.status(500).send(t(req.lang || DEFAULT_LANG, 'err.server'));
 });
 
 app.listen(config.port, '0.0.0.0', () => {
-  console.log(`${config.schoolName} запущен на порту ${config.port}: http://localhost:${config.port}`);
+  console.log(`${config.schoolName} працює на порту ${config.port}: http://localhost:${config.port}`);
 }).on('error', (err) => {
-  if (err.code === 'EADDRINUSE') console.error(`\n  Порт ${config.port} уже занят. Запустите на другом: PORT=8080 npm start\n`);
+  if (err.code === 'EADDRINUSE') console.error(`\n  Порт ${config.port} уже зайнятий. Запустіть на іншому: PORT=8080 npm start\n`);
   else console.error(err);
   process.exit(1);
 });
