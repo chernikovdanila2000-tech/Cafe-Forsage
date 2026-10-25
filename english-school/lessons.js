@@ -19,7 +19,7 @@ module.exports = [
       <h3>Как представиться</h3>
       <ul>
         <li><b>My name is Anna.</b> / <b>I'm Anna.</b> — Меня зовут Анна.</li>
-        <li><b>I'm from Moscow.</b> — Я из Москвы.</li>
+        <li><b>I'm from Kyiv.</b> — Я из Киева.</li>
         <li><b>Nice to meet you!</b> — Приятно познакомиться! Ответ: <b>Nice to meet you too.</b></li>
       </ul>
       <h3>Вопросы при знакомстве</h3>
@@ -51,7 +51,7 @@ module.exports = [
     title: 'Глагол to be: am, is, are',
     summary: 'Главный глагол английского языка: как сказать «я студент», «она дома», «мы готовы».',
     duration: 40,
-    price: 990,
+    price: 350,
     theory: `
       <p>В русском мы говорим «Я студент», пропуская глагол. В английском так нельзя: нужен глагол <b>to be</b>.</p>
       <table class="grammar">
@@ -90,7 +90,7 @@ module.exports = [
     title: 'Present Simple: привычки и факты',
     summary: 'Рассказываем о распорядке дня, хобби и том, что происходит регулярно.',
     duration: 45,
-    price: 990,
+    price: 350,
     theory: `
       <p><b>Present Simple</b> описывает регулярные действия, привычки и общеизвестные факты:
       <i>I drink coffee every morning. Water boils at 100 °C.</i></p>
@@ -127,7 +127,7 @@ module.exports = [
     title: 'Числа, время и даты',
     summary: 'Называем время, договариваемся о встрече и не путаем thirteen и thirty.',
     duration: 35,
-    price: 990,
+    price: 350,
     theory: `
       <h3>Который час?</h3>
       <p><b>What time is it?</b> — <i>It's seven o'clock</i> (7:00), <i>It's half past seven</i> (7:30),
@@ -162,7 +162,7 @@ module.exports = [
     title: 'Past Simple: рассказ о прошлом',
     summary: 'Правильные и неправильные глаголы, рассказ о выходных и путешествиях.',
     duration: 45,
-    price: 990,
+    price: 350,
     theory: `
       <p><b>Past Simple</b> — завершённое действие в прошлом: <i>I visited Paris last year.</i></p>
       <h3>Правильные глаголы: + ed</h3>
@@ -198,7 +198,7 @@ module.exports = [
     title: 'В кафе и ресторане',
     summary: 'Заказываем еду, просим счёт и вежливо формулируем просьбы.',
     duration: 35,
-    price: 990,
+    price: 350,
     theory: `
       <p>Главная фраза для вежливой просьбы — <b>I'd like…</b> (I would like): <i>I'd like a cappuccino, please.</i>
       Она звучит мягче, чем <i>I want</i>.</p>
@@ -237,7 +237,7 @@ module.exports = [
     title: 'Будущее: will и going to',
     summary: 'Говорим о планах, обещаниях и прогнозах — и выбираем правильную форму.',
     duration: 40,
-    price: 990,
+    price: 350,
     theory: `
       <h3>going to — планы и намерения</h3>
       <p>Решение уже принято: <i>I'm <b>going to</b> visit my grandma this weekend.</i></p>
@@ -272,7 +272,7 @@ module.exports = [
     title: 'Путешествия: аэропорт и отель',
     summary: 'Регистрация на рейс, паспортный контроль и заселение в отель без стресса.',
     duration: 40,
-    price: 990,
+    price: 350,
     theory: `
       <h3>В аэропорту</h3>
       <ul>
@@ -285,7 +285,7 @@ module.exports = [
       <i>How long are you staying?</i> — <b>For ten days.</b></p>
       <h3>В отеле</h3>
       <ul>
-        <li><b>I have a reservation under the name Ivanov.</b> — У меня бронь на имя Иванов.</li>
+        <li><b>I have a reservation under the name Shevchenko.</b> — У меня бронь на имя Шевченко.</li>
         <li><b>What time is check-out?</b> — Во сколько выезд?</li>
         <li><b>Is breakfast included?</b> — Завтрак включён?</li>
       </ul>`,

@@ -79,7 +79,7 @@ pm2 save && pm2 startup
 ## Оплата
 
 Пока `PAYMENT_URL` не задан, работает **демо-оплата** — удобно, чтобы проверить сайт.
-Для настоящих платежей укажите ссылку на страницу оплаты (ЮKassa, Robokassa, Тинькофф, Stripe Payment Link и т. п.):
+Для настоящих платежей укажите ссылку на страницу оплаты (WayForPay, LiqPay, Plata by mono, Stripe Payment Link и т. п.):
 
 ```bash
 PAYMENT_URL="https://ваш-платёжный-сервис/pay?order={payment}&sum={amount}" npm start
@@ -101,8 +101,8 @@ PAYMENT_URL="https://ваш-платёжный-сервис/pay?order={payment}&
 | `PORT` | `3000` | Порт сервера |
 | `SCHOOL_NAME` | `Mayfair` | Название школы |
 | `SCHOOL_PHONE`, `SCHOOL_EMAIL` | примеры | Контакты в подвале |
-| `CURRENCY` | `₽` | Валюта |
-| `TUTOR_PRICE` | `1900` | Цена занятия с преподавателем на главной |
+| `CURRENCY` | `₴` | Валюта |
+| `TUTOR_PRICE` | `600` | Цена занятия с преподавателем на главной |
 | `PAYMENT_URL` | — | Ссылка на оплату |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | `admin@school.local`, случайный | Данные администратора |
 | `SECURE_COOKIES` | `false` | Поставьте `true`, когда сайт работает по HTTPS |

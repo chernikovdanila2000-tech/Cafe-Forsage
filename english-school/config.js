@@ -2,12 +2,12 @@
 module.exports = {
   port: Number(process.env.PORT) || 3000,
   schoolName: process.env.SCHOOL_NAME || 'Mayfair',
-  phone: process.env.SCHOOL_PHONE || '+7 (900) 000-00-00',
-  email: process.env.SCHOOL_EMAIL || 'hello@mayfair-english.ru',
-  currency: process.env.CURRENCY || '₽',
-  tutorPrice: Number(process.env.TUTOR_PRICE) || 1900,
+  phone: process.env.SCHOOL_PHONE || '+380 (00) 000-00-00',
+  email: process.env.SCHOOL_EMAIL || 'hello@mayfair-english.com.ua',
+  currency: process.env.CURRENCY || '₴',
+  tutorPrice: Number(process.env.TUTOR_PRICE) || 600,
 
-  // Ссылка на оплату (ЮKassa, Robokassa, Stripe Payment Link, страница банка и т. п.).
+  // Ссылка на оплату (WayForPay, LiqPay, Plata by mono, Stripe Payment Link и т. п.).
   // Можно использовать подстановки: {payment} {lesson} {amount} {email}.
   // Если подстановок нет, параметры добавятся в конец ссылки.
   // Пусто — включается демо-оплата для проверки сайта.

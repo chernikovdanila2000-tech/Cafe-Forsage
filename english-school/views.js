@@ -5,7 +5,7 @@ const config = require('./config');
 const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 const h = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ESC[c]);
 
-const money = (amount) => `${Number(amount).toLocaleString('ru-RU')} ${config.currency}`;
+const money = (amount) => `${Number(amount).toLocaleString('uk-UA')} ${config.currency}`;
 
 const date = (value) =>
   value ? new Date(value.replace(' ', 'T') + 'Z').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
