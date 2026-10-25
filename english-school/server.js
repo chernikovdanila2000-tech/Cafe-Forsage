@@ -1,3 +1,18 @@
+// Встроенная база SQLite есть только в Node.js 22.13+. На старой версии сразу говорим, что делать.
+const [major, minor] = process.versions.node.split('.').map(Number);
+if (major < 22 || (major === 22 && minor < 13)) {
+  console.error(`\n  Нужен Node.js 22.13 или новее, сейчас установлен ${process.version}.\n  Скачайте актуальную LTS-версию: https://nodejs.org\n`);
+  process.exit(1);
+}
+
+// Скрываем предупреждение «SQLite is an experimental feature» — на работу сайта оно не влияет.
+const emitWarning = process.emitWarning;
+process.emitWarning = (warning, ...args) => {
+  const type = typeof args[0] === 'string' ? args[0] : args[0]?.type;
+  if (type === 'ExperimentalWarning' && String(warning).includes('SQLite')) return;
+  return emitWarning.call(process, warning, ...args);
+};
+
 const path = require('node:path');
 const express = require('express');
 const config = require('./config');
@@ -256,6 +271,10 @@ app.use((err, req, res, next) => {
   res.status(500).send('Что-то пошло не так. Попробуйте обновить страницу.');
 });
 
-app.listen(config.port, () => {
-  console.log(`${config.schoolName}: http://localhost:${config.port}`);
+app.listen(config.port, '0.0.0.0', () => {
+  console.log(`${config.schoolName} запущен на порту ${config.port}: http://localhost:${config.port}`);
+}).on('error', (err) => {
+  if (err.code === 'EADDRINUSE') console.error(`\n  Порт ${config.port} уже занят. Запустите на другом: PORT=8080 npm start\n`);
+  else console.error(err);
+  process.exit(1);
 });
