@@ -1,9 +1,11 @@
+const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
 const lessons = require('./lessons');
 
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data', 'school.db');
+fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 const db = new DatabaseSync(DB_PATH);
 
 db.exec(`

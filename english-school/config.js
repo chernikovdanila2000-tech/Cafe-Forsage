@@ -1,9 +1,9 @@
 // Настройки сайта. Всё можно переопределить переменными окружения (см. README).
 module.exports = {
   port: Number(process.env.PORT) || 3000,
-  schoolName: process.env.SCHOOL_NAME || 'Elmwood',
+  schoolName: process.env.SCHOOL_NAME || 'Mayfair',
   phone: process.env.SCHOOL_PHONE || '+7 (900) 000-00-00',
-  email: process.env.SCHOOL_EMAIL || 'hello@elmwood-english.ru',
+  email: process.env.SCHOOL_EMAIL || 'hello@mayfair-english.ru',
   currency: process.env.CURRENCY || '₽',
   tutorPrice: Number(process.env.TUTOR_PRICE) || 1900,
 
