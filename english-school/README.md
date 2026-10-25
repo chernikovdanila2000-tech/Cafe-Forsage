@@ -99,7 +99,8 @@ PAYMENT_URL="https://ваш-платёжный-сервис/pay?order={payment}&
 | Переменная | По умолчанию | Назначение |
 |---|---|---|
 | `PORT` | `3000` | Порт сервера |
-| `SCHOOL_NAME` | `Mayfair` | Название школы |
+| `SCHOOL_NAME` | `Inkwell Academy` | Название школы |
+| `SCHOOL_TAGLINE` | `School of English` | Подпись под логотипом |
 | `SCHOOL_PHONE`, `SCHOOL_EMAIL` | примеры | Контакты в подвале |
 | `CURRENCY` | `₴` | Валюта |
 | `TUTOR_PRICE` | `600` | Цена занятия с преподавателем на главной |

@@ -73,7 +73,7 @@ function layout({ title, user, body, msg, bodyClass = '', description }) {
   <div class="container header-inner">
     <a class="logo" href="/">
       <span class="logo-mark">${h(config.schoolName[0])}</span>
-      <span>${h(config.schoolName)}<small>English School</small></span>
+      <span>${h(config.schoolName)}<small>${h(config.tagline)}</small></span>
     </a>
     <button class="nav-toggle" aria-label="Меню" aria-expanded="false"><span></span><span></span></button>
     <nav class="nav">
@@ -97,7 +97,7 @@ ${body}
 <footer class="site-footer">
   <div class="container footer-inner">
     <div>
-      <a class="logo logo-light" href="/"><span class="logo-mark">${h(config.schoolName[0])}</span><span>${h(config.schoolName)}<small>English School</small></span></a>
+      <a class="logo logo-light" href="/"><span class="logo-mark">${h(config.schoolName[0])}</span><span>${h(config.schoolName)}<small>${h(config.tagline)}</small></span></a>
       <p class="muted">Английский для жизни, работы и путешествий.</p>
     </div>
     <div class="footer-links">

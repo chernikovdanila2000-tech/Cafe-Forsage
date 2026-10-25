@@ -1,9 +1,10 @@
 // Настройки сайта. Всё можно переопределить переменными окружения (см. README).
 module.exports = {
   port: Number(process.env.PORT) || 3000,
-  schoolName: process.env.SCHOOL_NAME || 'Mayfair',
+  schoolName: process.env.SCHOOL_NAME || 'Inkwell Academy',
+  tagline: process.env.SCHOOL_TAGLINE || 'School of English',
   phone: process.env.SCHOOL_PHONE || '+380 (00) 000-00-00',
-  email: process.env.SCHOOL_EMAIL || 'hello@mayfair-english.com.ua',
+  email: process.env.SCHOOL_EMAIL || 'hello@inkwell.academy',
   currency: process.env.CURRENCY || '₴',
   tutorPrice: Number(process.env.TUTOR_PRICE) || 600,
 
