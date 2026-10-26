@@ -18,6 +18,7 @@ const express = require('express');
 const config = require('./config');
 const db = require('./db');
 const views = require('./views');
+const legal = require('./legal');
 const { t, LANGS, DEFAULT_LANG } = require('./i18n');
 
 db.ensureAdmin();
@@ -106,6 +107,14 @@ app.post('/request', (req, res) => {
   res.redirect('/?msg=request_sent#trial');
 });
 
+app.get('/offer', (req, res) => {
+  res.send(views.legalPage({ lang: req.lang, user: req.user, html: legal.offer(), title: t(req.lang, 'footer.offer') }));
+});
+
+app.get('/privacy', (req, res) => {
+  res.send(views.legalPage({ lang: req.lang, user: req.user, html: legal.privacy(), title: t(req.lang, 'footer.privacy') }));
+});
+
 // ---------- Регистрация и вход ----------
 
 app.get('/register', (req, res) => {
@@ -120,6 +129,7 @@ app.post('/register', (req, res) => {
     phone: field(req.body.phone, 30),
     level: views.LEVEL_CODES.includes(req.body.level) ? req.body.level : 'A1',
   };
+  values.agree = req.body.agree === '1';
   const password = String(req.body.password || '');
   const fail = (key) => res.status(400).send(views.authPage({ lang: req.lang, mode: 'register', error: t(req.lang, key), values, next: req.body.next }));
 
@@ -127,6 +137,7 @@ app.post('/register', (req, res) => {
   if (!isEmail(values.email)) return fail('err.email');
   if (!values.phone) return fail('err.phone');
   if (password.length < 8) return fail('err.password');
+  if (!values.agree) return fail('err.agree');
   if (db.users.byEmail(values.email)) return fail('err.exists');
 
   const userId = db.users.create({ ...values, password });
@@ -244,6 +255,7 @@ app.get('/admin', requireUser, requireAdmin, (req, res) => {
     users: db.users.all(),
     orders: db.orders.all(),
     requests: db.requests.all(),
+    storageWarning: db.storageWarning,
   }));
 });
 

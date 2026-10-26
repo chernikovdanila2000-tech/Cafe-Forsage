@@ -31,6 +31,15 @@ module.exports = {
   // Порожньо — вмикається демо-оплата для перевірки сайту.
   paymentUrl: process.env.PAYMENT_URL || '',
 
+  // Реквізити для оферти й політики конфіденційності (ФОП або юрособа, що надає послуги).
+  legal: {
+    seller: process.env.LEGAL_SELLER || '',
+    taxId: process.env.LEGAL_TAX_ID || '',
+    address: process.env.LEGAL_ADDRESS || '',
+    site: process.env.SITE_URL || 'https://inkwell.academy',
+    updated: process.env.LEGAL_UPDATED || '26.10.2026',
+  },
+
   // Вмикайте, коли сайт працює через HTTPS: cookie передаватиметься лише захищеним каналом.
   secureCookies: process.env.SECURE_COOKIES === 'true',
 

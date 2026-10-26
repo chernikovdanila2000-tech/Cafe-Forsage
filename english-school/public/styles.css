@@ -292,6 +292,23 @@ textarea { resize: vertical; }
 .form { display: grid; gap: 18px; }
 .form label { display: grid; gap: 8px; font-size: .875rem; font-weight: 600; color: var(--ink-soft); }
 
+.form .check { display: flex; align-items: flex-start; gap: 10px; font-weight: 500; font-size: .85rem; line-height: 1.5; color: var(--muted); }
+.form .check input { width: 18px; height: 18px; margin: 2px 0 0; flex: none; accent-color: var(--ink); }
+.form .check a, .legal-note a { color: var(--accent-dark); }
+.legal-note { text-align: center; font-size: .85rem; color: var(--muted); margin: 28px 0 0; }
+.checkout .legal-note { margin: 16px 0 0; }
+
+/* Оферта */
+.legal { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: clamp(24px, 5vw, 56px); font-size: .975rem; }
+.legal h1 { font-size: clamp(1.8rem, 4vw, 2.4rem); }
+.legal h2 { font-size: 1.35rem; margin: 32px 0 10px; }
+.legal p, .legal li { color: var(--ink-soft); }
+.legal ul { padding-left: 1.2em; }
+.legal a { color: var(--accent-dark); }
+.legal-updated { color: var(--muted); font-size: .875rem; }
+.legal-details { list-style: none; padding: 0 !important; display: grid; gap: 6px; }
+mark.fill { background: var(--warn-soft); color: var(--warn); padding: 1px 6px; border-radius: 6px; font-weight: 600; }
+
 /* ---------- Вход ---------- */
 .page-auth main { min-height: calc(100vh - 76px - 220px); display: grid; place-items: center; }
 .auth { padding: 56px 16px; width: 100%; }

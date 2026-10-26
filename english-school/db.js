@@ -3,7 +3,16 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
 
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data', 'school.db');
+// Де лежить база. На Railway з підключеним Volume беремо його автоматично,
+// інакше база житиме всередині контейнера й зникатиме після кожного оновлення сайту.
+const VOLUME = process.env.RAILWAY_VOLUME_MOUNT_PATH;
+const DB_PATH = process.env.DB_PATH || (VOLUME ? path.join(VOLUME, 'school.db') : path.join(__dirname, 'data', 'school.db'));
+const onRailway = Boolean(process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_PROJECT_ID);
+const insideVolume = VOLUME && path.resolve(DB_PATH).startsWith(path.resolve(VOLUME) + path.sep);
+const storageWarning = onRailway && !insideVolume;
+if (storageWarning) {
+  console.warn(`\n  УВАГА: база ${DB_PATH} не на постійному диску (Volume).\n  Акаунти й оплати зникатимуть після кожного оновлення сайту.\n  Підключіть Volume у Railway: правою кнопкою по сервісу → Attach Volume, шлях /data.\n`);
+}
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 const db = new DatabaseSync(DB_PATH);
 
@@ -211,4 +220,4 @@ function ensureAdmin() {
   }
 }
 
-module.exports = { db, users, sessions, orders, lessons, requests, ensureAdmin };
+module.exports = { storageWarning, db, users, sessions, orders, lessons, requests, ensureAdmin };

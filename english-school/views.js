@@ -107,6 +107,8 @@ ${body}
       <a href="/#pricing">${T('nav.pricing')}</a>
       <a href="/#trial">${T('footer.trial')}</a>
       <a href="/dashboard">${T('nav.cabinet')}</a>
+      <a href="/offer">${T('footer.offer')}</a>
+      <a href="/privacy">${T('footer.privacy')}</a>
     </div>
     <div class="footer-contacts">
       <a href="tel:${h(config.phone.replace(/[^+\d]/g, ''))}">${h(config.phone)}</a>
@@ -272,6 +274,7 @@ function home({ lang, user, msg }) {
         <a class="btn btn-light" href="/pay/monthly">${T('pricing.monthly.cta')}</a>
       </article>
     </div>
+    <p class="legal-note">${T('legal.agreePay')}</p>
   </div>
 </section>
 
@@ -348,6 +351,7 @@ function authPage({ lang, mode, error, values = {}, user, msg, next }) {
       ${isRegister ? `<label>${T('auth.phone')} <span class="optional">— ${T('auth.phoneHint')}</span><input type="tel" name="phone" required maxlength="30" value="${h(values.phone)}" autocomplete="tel" placeholder="+380"></label>` : ''}
       <label>${T('auth.password')}<input type="password" name="password" required minlength="${isRegister ? 8 : 1}" autocomplete="${isRegister ? 'new-password' : 'current-password'}"></label>
       ${isRegister ? `<label>${T('auth.level')}<select name="level">${levelOptions(lang, values.level)}</select></label>` : ''}
+      ${isRegister ? `<label class="check"><input type="checkbox" name="agree" value="1" required${values.agree ? ' checked' : ''}> <span>${T('auth.agree')}</span></label>` : ''}
       <button class="btn btn-dark btn-block" type="submit">${T(isRegister ? 'auth.register.submit' : 'auth.login.submit')}</button>
     </form>
     <p class="auth-switch">${isRegister
@@ -419,6 +423,7 @@ function dashboard({ lang, user, msg, balance, orders }) {
         </div>
         <p class="muted small">${h(T('dash.buyLead', { phone: user.phone || T('dash.noPhone') }))}</p>
         <p class="muted small">${T('dash.consult')}</p>
+        <p class="muted small">${T('legal.agreePay')}</p>
       </div>
     </div>
 
@@ -461,6 +466,7 @@ function demoCheckout({ lang, user, product, order }) {
     <form method="post" action="/pay/demo/${order.id}">
       <button class="btn btn-accent btn-block" type="submit">${T('checkout.submit', { amount: money(order.amount, lang) })}</button>
     </form>
+    <p class="legal-note">${T('legal.agreePay')}</p>
     <p class="auth-switch"><a href="/dashboard">${T('checkout.back')}</a></p>
   </div>
 </section>`;
@@ -502,7 +508,7 @@ function account({ lang, user, msg, error }) {
 
 // ---------- Адмін-панель ----------
 
-function admin({ lang, user, msg, users, orders, requests }) {
+function admin({ lang, user, msg, users, orders, requests, storageWarning }) {
   const T = (key, vars) => t(lang, key, vars);
   const pending = orders.filter((o) => o.status === 'pending');
   const revenue = orders.filter((o) => o.status === 'paid').reduce((s, o) => s + o.amount, 0);
@@ -512,6 +518,7 @@ function admin({ lang, user, msg, users, orders, requests }) {
   <div class="container">
     <p class="eyebrow">${T('admin.eyebrow')}</p>
     <h1>${T('admin.title')}</h1>
+    ${storageWarning ? `<div class="flash flash-error" role="alert">${T('admin.storageWarning')}</div>` : ''}
     <div class="admin-stats">
       <div class="panel"><span class="panel-label">${T('admin.students')}</span><b>${users.filter((u) => !u.is_admin).length}</b></div>
       <div class="panel"><span class="panel-label">${T('admin.pending')}</span><b>${pending.length}</b></div>
@@ -584,6 +591,20 @@ function admin({ lang, user, msg, users, orders, requests }) {
   return layout({ lang, title: T('nav.admin'), user, msg, body, bodyClass: 'page-app' });
 }
 
+// ---------- Оферта й політика конфіденційності ----------
+
+function legalPage({ lang, user, html, title }) {
+  const note = t(lang, 'legal.enNote');
+  const body = `
+<section class="dash">
+  <div class="container container-narrow">
+    ${note ? `<div class="flash flash-info" lang="en">${note}</div>` : ''}
+    <article class="legal" lang="uk">${html}</article>
+  </div>
+</section>`;
+  return layout({ lang, title, user, body, bodyClass: 'page-app' });
+}
+
 function notFound({ lang, user }) {
   const T = (key, vars) => t(lang, key, vars);
   const body = `
@@ -598,4 +619,4 @@ function notFound({ lang, user }) {
   return layout({ lang, title: T('notfound.title'), user, body, bodyClass: 'page-auth' });
 }
 
-module.exports = { home, authPage, dashboard, demoCheckout, account, admin, notFound, LEVEL_CODES };
+module.exports = { home, authPage, dashboard, demoCheckout, account, admin, legalPage, notFound, LEVEL_CODES };
