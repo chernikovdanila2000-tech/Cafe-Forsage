@@ -1,6 +1,5 @@
 const config = require('./config');
 const { t } = require('./i18n');
-const { localize } = require('./lessons');
 
 // ---------- Утиліти ----------
 
@@ -20,17 +19,8 @@ const LEVEL_CODES = ['A1', 'A2', 'B1', 'B2', 'C1'];
 const MESSAGE_TYPES = {
   registered: 'success', loggedout: 'info', login_required: 'info', request_sent: 'success',
   profile_saved: 'success', password_changed: 'success', paid: 'success', payment_pending: 'info',
-  completed: 'success', confirmed: 'success', cancelled: 'info',
+  confirmed: 'success', cancelled: 'info', held: 'success', undone: 'info',
 };
-
-function groupByModule(lessons) {
-  const groups = new Map();
-  for (const lesson of lessons) {
-    if (!groups.has(lesson.module)) groups.set(lesson.module, []);
-    groups.get(lesson.module).push(lesson);
-  }
-  return [...groups];
-}
 
 function levelOptions(lang, selected) {
   return LEVEL_CODES.map((k) => `<option value="${k}"${selected === k ? ' selected' : ''}>${h(t(lang, `level.${k}`))}</option>`).join('');
@@ -89,7 +79,7 @@ function layout({ lang, title, user, body, msg, error, bodyClass = '' }) {
     </div>
     <nav class="nav">
       <a href="/#approach">${T('nav.approach')}</a>
-      <a href="/#program">${T('nav.program')}</a>
+      <a href="/#format">${T('nav.format')}</a>
       <a href="/#pricing">${T('nav.pricing')}</a>
       <a href="/#teachers">${T('nav.teachers')}</a>
       <a href="/#faq">${T('nav.faq')}</a>
@@ -113,7 +103,7 @@ ${body}
       <p class="muted">${T('footer.slogan')}</p>
     </div>
     <div class="footer-links">
-      <a href="/#program">${T('nav.program')}</a>
+      <a href="/#format">${T('nav.format')}</a>
       <a href="/#pricing">${T('nav.pricing')}</a>
       <a href="/#trial">${T('footer.trial')}</a>
       <a href="/dashboard">${T('nav.cabinet')}</a>
@@ -125,7 +115,6 @@ ${body}
   </div>
   <div class="container footer-bottom">© ${new Date().getFullYear()} ${h(name)}. ${T('footer.rights')}</div>
 </footer>
-<script>window.I18N=${JSON.stringify({ allRight: T('quiz.allRight'), some: T('quiz.some') }).replace(/</g, '\\u003c')}</script>
 <script src="/app.js" defer></script>
 </body>
 </html>`;
@@ -133,10 +122,11 @@ ${body}
 
 // ---------- Головна ----------
 
-function home({ lang, user, msg, lessons }) {
+function home({ lang, user, msg }) {
   const T = (key, vars) => t(lang, key, vars);
-  const items = lessons.map((l) => localize(l, lang));
-  const firstFree = items.find((l) => l.is_free);
+  const { single, monthly } = config.products;
+  const min = config.lessonDuration;
+  const teacherName = text(config.teachers[0]?.name, lang) || T('hero.card.teacher');
   const body = `
 <section class="hero">
   <div class="container hero-inner">
@@ -146,7 +136,7 @@ function home({ lang, user, msg, lessons }) {
       <p class="lead">${T('hero.lead')}</p>
       <div class="hero-actions">
         <a class="btn btn-dark" href="${user ? '/dashboard' : '/register'}">${user ? T('hero.continue') : T('hero.start')} ${icon.arrow}</a>
-        <a class="btn btn-ghost" href="#program">${T('hero.program')}</a>
+        <a class="btn btn-ghost" href="#pricing">${T('hero.pricing')}</a>
       </div>
       <ul class="hero-points">
         <li>${icon.check} ${T('hero.point1')}</li>
@@ -156,19 +146,19 @@ function home({ lang, user, msg, lessons }) {
     <div class="hero-card" aria-hidden="true">
       <div class="hc-top">
         <span class="hc-badge">${T('hero.card.badge')}</span>
-        <span class="hc-time">${icon.clock} ${config.lessonDuration} ${T('unit.min')}</span>
+        <span class="hc-time">${icon.clock} ${min} ${T('unit.min')}</span>
       </div>
-      <p class="hc-title">${T('hero.card.title')}</p>
-      <div class="hc-progress"><span style="width:62%"></span></div>
-      <p class="hc-caption">${T('hero.card.progress')}</p>
+      <p class="hc-title">${T('hero.card.when')}</p>
+      <div class="hc-teacher">
+        <span class="hc-avatar">${h(teacherName[0])}</span>
+        <span><b>${h(teacherName)}</b><small>${T('hero.card.online')}</small></span>
+      </div>
+      <div class="hc-progress"><span style="width:62.5%"></span></div>
+      <p class="hc-caption">${T('hero.card.subscription')}</p>
       <div class="hc-word">
         <span class="hc-label">${T('hero.card.word')}</span>
         <span class="hc-en">serendipity</span>
         <span class="hc-ru">${T('hero.card.translation')}</span>
-      </div>
-      <div class="hc-quiz">
-        <span>She … in a bank.</span>
-        <div><b>works</b><i>work</i><i>working</i></div>
       </div>
     </div>
   </div>
@@ -177,9 +167,9 @@ function home({ lang, user, msg, lessons }) {
 <section class="stats">
   <div class="container stats-inner">
     <div><b>A1–C1</b><span>${T('stats.levels')}</span></div>
-    <div><b>${items.length}</b><span>${T('stats.lessons')}</span></div>
-    <div><b>${config.lessonDuration}</b><span>${T('stats.minutes')}</span></div>
-    <div><b>24/7</b><span>${T('stats.access')}</span></div>
+    <div><b>1:1</b><span>${T('stats.format')}</span></div>
+    <div><b>${min}</b><span>${T('stats.minutes')}</span></div>
+    <div><b>−${monthly.discount}%</b><span>${T('stats.discount')}</span></div>
   </div>
 </section>
 
@@ -192,7 +182,7 @@ function home({ lang, user, msg, lessons }) {
     </div>
     <div class="features">
       <article class="feature">
-        <div class="feature-icon"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"/><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg></div>
+        <div class="feature-icon"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></svg></div>
         <h3>${T('approach.f1.title')}</h3>
         <p>${T('approach.f1.text')}</p>
       </article>
@@ -210,26 +200,20 @@ function home({ lang, user, msg, lessons }) {
   </div>
 </section>
 
-<section class="section section-tint" id="program">
+<section class="section section-tint" id="format">
   <div class="container">
     <div class="section-head">
-      <p class="eyebrow">${T('program.eyebrow')}</p>
-      <h2>${T('program.title')}</h2>
-      <p class="muted">${T('program.lead')} ${firstFree ? h(T('program.free', { title: firstFree.title })) : ''}</p>
+      <p class="eyebrow">${T('format.eyebrow')}</p>
+      <h2>${T('format.title')}</h2>
+      <p class="muted">${T('format.lead')}</p>
     </div>
-    <div class="program">
-      ${groupByModule(items).map(([module, group]) => `
-        <div class="module">
-          <h3>${h(module)}</h3>
-          <ol class="program-list">
-            ${group.map((l) => `
-              <li>
-                <span class="pl-num">${String(l.position + 1).padStart(2, '0')}</span>
-                <span class="pl-body"><b>${h(l.title)}</b><span>${h(l.summary)}</span></span>
-                <span class="pl-meta">${l.is_free ? `<span class="tag tag-free">${T('program.freeTag')}</span>` : money(l.price, lang)}</span>
-              </li>`).join('')}
-          </ol>
-        </div>`).join('')}
+    <div class="format-grid">
+      ${[1, 2, 3, 4].map((n) => `
+        <article class="format-item">
+          <span class="format-num">0${n}</span>
+          <h3>${T(`format.f${n}.title`)}</h3>
+          <p>${T(`format.f${n}.text`)}</p>
+        </article>`).join('')}
     </div>
   </div>
 </section>
@@ -251,29 +235,41 @@ function home({ lang, user, msg, lessons }) {
     <div class="section-head">
       <p class="eyebrow">${T('pricing.eyebrow')}</p>
       <h2>${T('pricing.title')}</h2>
+      <p class="muted">${T('pricing.lead', { min })}</p>
     </div>
-    <div class="pricing pricing-2">
+    <div class="pricing">
       <article class="price-card">
         <h3>${T('pricing.trial.title')}</h3>
-        <p class="price">${money(0, lang)}</p>
+        <p class="price">${money(0, lang)}<small> ${T('pricing.trial.per')}</small></p>
         <ul>
           <li>${icon.check} ${T('pricing.trial.f1')}</li>
           <li>${icon.check} ${T('pricing.trial.f2')}</li>
           <li>${icon.check} ${T('pricing.trial.f3')}</li>
         </ul>
-        <a class="btn btn-ghost" href="${user ? '/dashboard' : '/register'}">${T('pricing.trial.cta')}</a>
+        <a class="btn btn-ghost" href="#trial">${T('pricing.trial.cta')}</a>
+      </article>
+      <article class="price-card">
+        <h3>${T('pricing.single.title')}</h3>
+        <p class="price">${money(single.price, lang)}<small> ${T('pricing.single.per', { min })}</small></p>
+        <ul>
+          <li>${icon.check} ${T('pricing.single.f1')}</li>
+          <li>${icon.check} ${T('pricing.single.f2')}</li>
+          <li>${icon.check} ${T('pricing.single.f3')}</li>
+        </ul>
+        <a class="btn btn-ghost" href="/pay/single">${T('pricing.single.cta')}</a>
       </article>
       <article class="price-card price-card-accent">
-        <span class="price-badge">${T('pricing.tutor.badge')}</span>
-        <h3>${T('pricing.tutor.title')}</h3>
-        <p class="price">${money(config.lessonPrice, lang)}<small> ${T('pricing.tutor.per', { min: config.lessonDuration })}</small></p>
+        <span class="price-badge">${T('pricing.monthly.badge', { discount: monthly.discount })}</span>
+        <h3>${T('pricing.monthly.title')}</h3>
+        <p class="price-old">${money(monthly.fullPrice, lang)}</p>
+        <p class="price">${money(monthly.price, lang)}<small> ${T('pricing.monthly.per', { n: monthly.lessons })}</small></p>
         <ul>
-          <li>${icon.check} ${T('pricing.tutor.f1')}</li>
-          <li>${icon.check} ${T('pricing.tutor.f2')}</li>
-          <li>${icon.check} ${T('pricing.tutor.f3')}</li>
-          <li>${icon.check} ${T('pricing.tutor.f4')}</li>
+          <li>${icon.check} ${T('pricing.monthly.f1', { n: monthly.lessons, min })}</li>
+          <li>${icon.check} ${T('pricing.monthly.f2', { each: money(monthly.price / monthly.lessons, lang), single: money(single.price, lang) })}</li>
+          <li>${icon.check} ${T('pricing.monthly.f3', { discount: monthly.discount, save: money(monthly.fullPrice - monthly.price, lang) })}</li>
+          <li>${icon.check} ${T('pricing.monthly.f4')}</li>
         </ul>
-        <a class="btn btn-light" href="${user ? '/dashboard' : '/register'}">${T('pricing.tutor.cta')}</a>
+        <a class="btn btn-light" href="/pay/monthly">${T('pricing.monthly.cta')}</a>
       </article>
     </div>
   </div>
@@ -288,11 +284,11 @@ function home({ lang, user, msg, lessons }) {
     </div>
     <div class="teachers">
       ${config.teachers.map((teacher) => {
-        const teacherName = text(teacher.name, lang);
+        const name = text(teacher.name, lang);
         return `
         <article class="teacher">
-          <div class="avatar">${h(teacherName[0])}</div>
-          <h3>${h(teacherName)}</h3>
+          <div class="avatar">${h(name[0])}</div>
+          <h3>${h(name)}</h3>
           <p class="teacher-role">${h(text(teacher.role, lang))}</p>
           <p class="muted">${h(text(teacher.about, lang))}</p>
         </article>`;
@@ -308,7 +304,9 @@ function home({ lang, user, msg, lessons }) {
       <h2>${T('faq.title')}</h2>
     </div>
     <div class="faq">
-      ${[1, 2, 3, 4, 5].map((n) => `<details><summary>${T(`faq.q${n}`)}</summary><p>${T(`faq.a${n}`)}</p></details>`).join('')}
+      ${[1, 2, 3, 4, 5].map((n) => `<details><summary>${T(`faq.q${n}`)}</summary><p>${T(`faq.a${n}`, {
+        n: monthly.lessons, price: money(monthly.price, lang), full: money(monthly.fullPrice, lang), discount: monthly.discount, min,
+      })}</p></details>`).join('')}
     </div>
   </div>
 </section>
@@ -336,6 +334,7 @@ function home({ lang, user, msg, lessons }) {
 function authPage({ lang, mode, error, values = {}, user, msg, next }) {
   const T = (key, vars) => t(lang, key, vars);
   const isRegister = mode === 'register';
+  const nextQuery = next ? `?next=${encodeURIComponent(next)}` : '';
   const body = `
 <section class="auth">
   <div class="auth-card">
@@ -352,8 +351,8 @@ function authPage({ lang, mode, error, values = {}, user, msg, next }) {
       <button class="btn btn-dark btn-block" type="submit">${T(isRegister ? 'auth.register.submit' : 'auth.login.submit')}</button>
     </form>
     <p class="auth-switch">${isRegister
-      ? `${T('auth.haveAccount')} <a href="/login">${T('auth.toLogin')}</a>`
-      : `${T('auth.noAccount')} <a href="/register">${T('auth.toRegister')}</a>`}</p>
+      ? `${T('auth.haveAccount')} <a href="/login${nextQuery}">${T('auth.toLogin')}</a>`
+      : `${T('auth.noAccount')} <a href="/register${nextQuery}">${T('auth.toRegister')}</a>`}</p>
   </div>
 </section>`;
   return layout({ lang, title: T(isRegister ? 'auth.register.title' : 'auth.login.title'), user, msg, body, bodyClass: 'page-auth' });
@@ -361,24 +360,21 @@ function authPage({ lang, mode, error, values = {}, user, msg, next }) {
 
 // ---------- Особистий кабінет ----------
 
-function lessonStatus(l, user, lang) {
-  if (l.completed) return { cls: 'done', label: t(lang, 'status.done') };
-  if (l.is_free) return { cls: 'open', label: t(lang, 'status.free') };
-  if (l.paid) return { cls: 'open', label: t(lang, 'status.paid') };
-  if (user.is_admin) return { cls: 'open', label: t(lang, 'status.admin') };
-  if (l.pending) return { cls: 'pending', label: t(lang, 'status.pending') };
-  return { cls: 'locked', label: `${money(l.price, lang)} · ${t(lang, 'status.withTutor')}` };
-}
-
 const paymentStatus = (status, lang) => (['paid', 'pending', 'cancelled'].includes(status) ? t(lang, `pay.${status}`) : status);
 
-function dashboard({ lang, user, msg, lessons, payments }) {
+function productName(productId, lang) {
+  return t(lang, productId === 'monthly' ? 'product.monthly' : 'product.single');
+}
+
+function lessonsLabel(n, lang) {
+  return n === 1 ? t(lang, 'product.lesson1') : t(lang, 'product.lessons', { n });
+}
+
+function dashboard({ lang, user, msg, balance, orders }) {
   const T = (key, vars) => t(lang, key, vars);
-  const items = lessons.map((l) => localize(l, lang));
-  const unlocked = (l) => l.is_free || l.paid || user.is_admin;
-  const done = items.filter((l) => l.completed).length;
-  const percent = items.length ? Math.round((done / items.length) * 100) : 0;
-  const next = items.find((l) => !l.completed && unlocked(l)) || items.find((l) => !l.completed);
+  const { single, monthly } = config.products;
+  const min = config.lessonDuration;
+  const pendingLessons = orders.filter((o) => o.status === 'pending').reduce((s, o) => s + o.lessons, 0);
 
   const body = `
 <section class="dash">
@@ -393,62 +389,51 @@ function dashboard({ lang, user, msg, lessons, payments }) {
     </div>
 
     <div class="dash-grid">
-      <div class="panel progress-panel">
-        <span class="panel-label">${T('dash.progress')}</span>
-        <div class="ring" style="--p:${percent}"><span>${percent}%</span></div>
-        <p>${T('dash.progressText', { done, total: items.length })}</p>
+      <div class="panel balance-panel">
+        <span class="panel-label">${T('dash.balance')}</span>
+        ${balance.bought ? `
+          <div class="balance-num">${balance.left}</div>
+          <p class="balance-caption">${T('dash.left')}</p>
+          <p class="muted small">${T('dash.stats', { bought: balance.bought, held: balance.held })}</p>`
+        : `<p class="balance-empty">${T('dash.empty')}</p>`}
+        ${pendingLessons ? `<p class="pending-note">${h(T('dash.pendingNote', { n: lessonsLabel(pendingLessons, lang) }))}</p>` : ''}
       </div>
-      ${next ? `
-      <div class="panel next-panel">
-        <span class="panel-label">${T(done ? 'dash.continue' : 'dash.startHere')}</span>
-        <h2>${h(next.title)}</h2>
-        <p class="muted">${h(next.summary)}</p>
-        <a class="btn btn-dark" href="/lessons/${next.id}">${icon.play} ${T(unlocked(next) ? 'dash.open' : 'dash.goTo')}</a>
-      </div>` : `
-      <div class="panel next-panel">
-        <span class="panel-label">🎉</span>
-        <h2>${T('dash.allDone')}</h2>
-        <p class="muted">${T('dash.allDoneText')}</p>
-        <a class="btn btn-dark" href="/#trial">${T('dash.signUp')}</a>
-      </div>`}
+
+      <div class="panel buy-panel">
+        <span class="panel-label">${T('dash.buy')}</span>
+        <div class="buy-option">
+          <div>
+            <b>${T('product.single')}</b>
+            <span>${lessonsLabel(1, lang)} · ${min} ${T('unit.min')}</span>
+          </div>
+          <div class="buy-price"><b>${money(single.price, lang)}</b></div>
+          <a class="btn btn-small btn-ghost" href="/pay/single">${T('btn.pay')}</a>
+        </div>
+        <div class="buy-option buy-option-accent">
+          <div>
+            <b>${T('product.monthly')} <span class="tag tag-accent">−${monthly.discount}%</span></b>
+            <span>${T('pricing.monthly.f1', { n: monthly.lessons, min })}</span>
+          </div>
+          <div class="buy-price"><s>${money(monthly.fullPrice, lang)}</s><b>${money(monthly.price, lang)}</b></div>
+          <a class="btn btn-small btn-accent" href="/pay/monthly">${T('btn.pay')}</a>
+        </div>
+        <p class="muted small">${h(T('dash.buyLead', { phone: user.phone || T('dash.noPhone') }))}</p>
+        <p class="muted small">${T('dash.consult')}</p>
+      </div>
     </div>
 
-    <h2 class="dash-title">${T('dash.lessons')}</h2>
-    <p class="dash-note">${T('dash.tutorNote', { price: money(config.lessonPrice, lang), min: config.lessonDuration })}</p>
-    ${groupByModule(items).map(([module, group]) => `
-      <div class="module">
-        <h3>${h(module)}</h3>
-        <div class="lesson-list">
-          ${group.map((l) => {
-            const s = lessonStatus(l, user, lang);
-            return `
-            <div class="lesson-row status-${s.cls}">
-              <span class="lr-icon">${s.cls === 'done' ? icon.check : unlocked(l) ? icon.play : icon.lock}</span>
-              <a class="lr-body" href="/lessons/${l.id}">
-                <b>${h(l.title)}</b>
-                <span>${h(l.level)} · ${l.duration} ${T('unit.min')}</span>
-              </a>
-              <span class="lr-status">${h(s.label)}</span>
-              ${unlocked(l)
-                ? `<a class="btn btn-small btn-ghost" href="/lessons/${l.id}">${T(l.completed ? 'btn.repeat' : 'btn.open')}</a>`
-                : `<a class="btn btn-small btn-accent" href="/pay/${l.id}">${T('btn.pay')}</a>`}
-            </div>`;
-          }).join('')}
-        </div>
-      </div>`).join('')}
-
-    ${payments.length ? `
-    <h2 class="dash-title">${T('dash.payments')}</h2>
+    ${orders.length ? `
+    <h2 class="dash-title">${T('dash.orders')}</h2>
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th>${T('table.lesson')}</th><th>${T('table.amount')}</th><th>${T('table.date')}</th><th>${T('table.status')}</th></tr></thead>
+        <thead><tr><th>${T('table.product')}</th><th>${T('table.amount')}</th><th>${T('table.date')}</th><th>${T('table.status')}</th></tr></thead>
         <tbody>
-          ${payments.map((p) => `
+          ${orders.map((o) => `
           <tr>
-            <td>${h(localize({ id: p.lesson_id, title: p.lesson_title }, lang).title)}</td>
-            <td>${money(p.amount, lang)}</td>
-            <td>${date(p.created_at, lang)}</td>
-            <td><span class="pill pill-${h(p.status)}">${h(paymentStatus(p.status, lang))}</span></td>
+            <td>${h(productName(o.product, lang))}<br><span class="muted small">${h(lessonsLabel(o.lessons, lang))}</span></td>
+            <td>${money(o.amount, lang)}</td>
+            <td>${date(o.created_at, lang)}</td>
+            <td><span class="pill pill-${h(o.status)}">${h(paymentStatus(o.status, lang))}</span></td>
           </tr>`).join('')}
         </tbody>
       </table>
@@ -458,100 +443,25 @@ function dashboard({ lang, user, msg, lessons, payments }) {
   return layout({ lang, title: T('nav.cabinet'), user, msg, body, bodyClass: 'page-app' });
 }
 
-// ---------- Урок ----------
-
-function lessonPage({ lang, user, msg, lesson: row, hasAccess, completed, prev, next, pending }) {
-  const T = (key, vars) => t(lang, key, vars);
-  const lesson = localize(row, lang);
-  const prevItem = prev && localize(prev, lang);
-  const nextItem = next && localize(next, lang);
-  const paidTutorLesson = hasAccess && !lesson.is_free && !user.is_admin;
-
-  const header = `
-    <a class="back-link" href="/dashboard">${icon.back} ${T('lesson.all')}</a>
-    <p class="eyebrow">${h(lesson.module)}</p>
-    <h1>${h(lesson.title)}</h1>
-    <div class="lesson-meta">
-      <span class="tag">${h(lesson.level)}</span>
-      <span>${icon.clock} ${lesson.duration} ${T('unit.min')}${lesson.is_free ? '' : ` · ${T('status.withTutor')}`}</span>
-      ${completed ? `<span class="tag tag-free">${icon.check} ${T('lesson.done')}</span>` : ''}
-    </div>
-    <p class="lead">${h(lesson.summary)}</p>`;
-
-  const content = hasAccess
-    ? `
-    ${paidTutorLesson ? `<div class="flash flash-success">${T('lesson.tutorBooked')}</div>` : ''}
-    <article class="lesson-body">
-      <h2>${T('lesson.theory')}</h2>
-      <div class="prose">${lesson.theory}</div>
-
-      <h2>${T('lesson.vocab')}</h2>
-      <div class="vocab">
-        ${lesson.vocabulary.map(([en, uk]) => `<div class="vocab-item"><b lang="en">${h(en)}</b><span lang="uk">${h(uk)}</span></div>`).join('')}
-      </div>
-
-      <h2>${T('lesson.quiz')}</h2>
-      <form class="quiz" data-quiz>
-        ${lesson.exercises.map((ex, i) => `
-          <fieldset class="quiz-q" data-answer="${ex.answer}">
-            <legend><span>${i + 1}.</span> ${h(ex.q)}</legend>
-            ${ex.options.map((opt, j) => `<label class="quiz-opt"><input type="radio" name="q${i}" value="${j}"> <span>${h(opt)}</span></label>`).join('')}
-          </fieldset>`).join('')}
-        <div class="quiz-actions">
-          <button class="btn btn-ghost" type="submit">${T('lesson.check')}</button>
-          <p class="quiz-result" aria-live="polite"></p>
-        </div>
-      </form>
-
-      <div class="lesson-finish">
-        ${completed
-          ? `<p>${icon.check} ${T('lesson.alreadyDone')}</p>`
-          : `<form method="post" action="/lessons/${lesson.id}/complete"><button class="btn btn-dark" type="submit">${icon.check} ${T('lesson.markDone')}</button></form>`}
-      </div>
-    </article>`
-    : `
-    <div class="paywall">
-      <div class="paywall-icon">${icon.user}</div>
-      <h2>${T('lesson.paywall.title')}</h2>
-      <p class="muted">${T('lesson.paywall.text', { min: lesson.duration, words: lesson.vocabulary.length, questions: lesson.exercises.length })}</p>
-      <p class="paywall-price">${money(lesson.price, lang)}</p>
-      <a class="btn btn-accent" href="/pay/${lesson.id}">${T('lesson.paywall.cta')} ${icon.arrow}</a>
-      ${pending ? `<p class="muted small">${T('lesson.paywall.pending')}</p>` : ''}
-    </div>`;
-
-  const body = `
-<section class="lesson">
-  <div class="container container-narrow">
-    ${header}
-    ${content}
-    <nav class="lesson-nav">
-      ${prevItem ? `<a href="/lessons/${prevItem.id}">${icon.back} ${h(prevItem.title)}</a>` : '<span></span>'}
-      ${nextItem ? `<a href="/lessons/${nextItem.id}">${h(nextItem.title)} ${icon.arrow}</a>` : ''}
-    </nav>
-  </div>
-</section>`;
-  return layout({ lang, title: lesson.title, user, msg, body, bodyClass: 'page-app' });
-}
-
 // ---------- Оплата ----------
 
-function demoCheckout({ lang, user, lesson: row, payment }) {
+function demoCheckout({ lang, user, product, order }) {
   const T = (key, vars) => t(lang, key, vars);
-  const lesson = localize(row, lang);
   const body = `
 <section class="auth">
   <div class="auth-card checkout">
     <p class="eyebrow">${T('checkout.eyebrow')}</p>
-    <h1>${h(lesson.title)}</h1>
+    <h1>${h(productName(product.id, lang))}</h1>
     <div class="checkout-row"><span>${T('checkout.student')}</span><b>${h(user.email)}</b></div>
-    <div class="checkout-row"><span>${T('checkout.number')}</span><b>№ ${payment.id}</b></div>
-    <div class="checkout-row"><span>${T('table.lesson')}</span><b>${lesson.duration} ${T('unit.min')} · ${T('status.withTutor')}</b></div>
-    <div class="checkout-row checkout-total"><span>${T('checkout.total')}</span><b>${money(payment.amount, lang)}</b></div>
+    <div class="checkout-row"><span>${T('checkout.number')}</span><b>№ ${order.id}</b></div>
+    <div class="checkout-row"><span>${T('checkout.lessons')}</span><b>${h(lessonsLabel(order.lessons, lang))} · ${config.lessonDuration} ${T('unit.min')}</b></div>
+    ${product.discount ? `<div class="checkout-row"><span>${T('checkout.discount')}</span><b>−${product.discount}% (<s>${money(product.fullPrice, lang)}</s>)</b></div>` : ''}
+    <div class="checkout-row checkout-total"><span>${T('checkout.total')}</span><b>${money(order.amount, lang)}</b></div>
     <div class="flash flash-info">${T('checkout.demo')}</div>
-    <form method="post" action="/pay/demo/${payment.id}">
-      <button class="btn btn-accent btn-block" type="submit">${T('checkout.submit', { amount: money(payment.amount, lang) })}</button>
+    <form method="post" action="/pay/demo/${order.id}">
+      <button class="btn btn-accent btn-block" type="submit">${T('checkout.submit', { amount: money(order.amount, lang) })}</button>
     </form>
-    <p class="auth-switch"><a href="/lessons/${lesson.id}">${T('checkout.back')}</a></p>
+    <p class="auth-switch"><a href="/dashboard">${T('checkout.back')}</a></p>
   </div>
 </section>`;
   return layout({ lang, title: T('checkout.eyebrow'), user, body, bodyClass: 'page-auth' });
@@ -592,10 +502,11 @@ function account({ lang, user, msg, error }) {
 
 // ---------- Адмін-панель ----------
 
-function admin({ lang, user, msg, users, payments, requests }) {
+function admin({ lang, user, msg, users, orders, requests }) {
   const T = (key, vars) => t(lang, key, vars);
-  const pending = payments.filter((p) => p.status === 'pending');
-  const revenue = payments.filter((p) => p.status === 'paid').reduce((s, p) => s + p.amount, 0);
+  const pending = orders.filter((o) => o.status === 'pending');
+  const revenue = orders.filter((o) => o.status === 'paid').reduce((s, o) => s + o.amount, 0);
+  const tel = (phone) => (phone ? `<a href="tel:${h(phone.replace(/[^+\d]/g, ''))}">${h(phone)}</a>` : '—');
   const body = `
 <section class="dash">
   <div class="container">
@@ -608,45 +519,52 @@ function admin({ lang, user, msg, users, payments, requests }) {
       <div class="panel"><span class="panel-label">${T('admin.requests')}</span><b>${requests.length}</b></div>
     </div>
 
-    <h2 class="dash-title">${T('admin.payments')}</h2>
-    ${payments.length ? `
+    <h2 class="dash-title">${T('admin.orders')}</h2>
+    ${orders.length ? `
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th>№</th><th>${T('admin.student')}</th><th>${T('auth.phone')}</th><th>${T('table.lesson')}</th><th>${T('table.amount')}</th><th>${T('table.date')}</th><th>${T('table.status')}</th><th></th></tr></thead>
+        <thead><tr><th>№</th><th>${T('admin.student')}</th><th>${T('auth.phone')}</th><th>${T('table.product')}</th><th>${T('table.amount')}</th><th>${T('table.date')}</th><th>${T('table.status')}</th><th></th></tr></thead>
         <tbody>
-          ${payments.map((p) => `
+          ${orders.map((o) => `
           <tr>
-            <td>${p.id}</td>
-            <td>${h(p.user_name)}<br><span class="muted small">${h(p.user_email)}</span></td>
-            <td>${p.user_phone ? `<a href="tel:${h(p.user_phone.replace(/[^+\d]/g, ''))}">${h(p.user_phone)}</a>` : '—'}</td>
-            <td>${h(localize({ id: p.lesson_id, title: p.lesson_title }, lang).title)}</td>
-            <td>${money(p.amount, lang)}</td>
-            <td>${date(p.created_at, lang)}</td>
-            <td><span class="pill pill-${h(p.status)}">${h(paymentStatus(p.status, lang))}</span></td>
-            <td class="actions">${p.status === 'pending' ? `
-              <form method="post" action="/admin/payments/${p.id}/confirm"><button class="btn btn-small btn-dark">${T('admin.confirm')}</button></form>
-              <form method="post" action="/admin/payments/${p.id}/cancel"><button class="btn btn-small btn-ghost">${T('admin.cancel')}</button></form>` : ''}
+            <td>${o.id}</td>
+            <td>${h(o.user_name)}<br><span class="muted small">${h(o.user_email)}</span></td>
+            <td>${tel(o.user_phone)}</td>
+            <td>${h(productName(o.product, lang))}<br><span class="muted small">${h(lessonsLabel(o.lessons, lang))}</span></td>
+            <td>${money(o.amount, lang)}</td>
+            <td>${date(o.created_at, lang)}</td>
+            <td><span class="pill pill-${h(o.status)}">${h(paymentStatus(o.status, lang))}</span></td>
+            <td class="actions">${o.status === 'pending' ? `
+              <form method="post" action="/admin/orders/${o.id}/confirm"><button class="btn btn-small btn-dark">${T('admin.confirm')}</button></form>
+              <form method="post" action="/admin/orders/${o.id}/cancel"><button class="btn btn-small btn-ghost">${T('admin.cancel')}</button></form>` : ''}
             </td>
           </tr>`).join('')}
         </tbody>
       </table>
-    </div>` : `<p class="muted">${T('admin.noPayments')}</p>`}
+    </div>` : `<p class="muted">${T('admin.noOrders')}</p>`}
 
     <h2 class="dash-title">${T('admin.accounts')}</h2>
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th>${T('admin.name')}</th><th>${T('auth.email')}</th><th>${T('auth.phone')}</th><th>${T('admin.level')}</th><th>${T('admin.completed')}</th><th>${T('admin.paidTotal')}</th><th>${T('admin.registered')}</th></tr></thead>
+        <thead><tr><th>${T('admin.name')}</th><th>${T('auth.phone')}</th><th>${T('admin.level')}</th><th>${T('admin.left')}</th><th>${T('admin.held')}</th><th>${T('admin.paidTotal')}</th><th>${T('admin.registered')}</th><th></th></tr></thead>
         <tbody>
-          ${users.map((u) => `
+          ${users.map((u) => {
+            const left = Math.max(u.lessons_bought - u.lessons_held, 0);
+            return `
           <tr>
-            <td>${h(u.name)}${u.is_admin ? ` <span class="pill pill-paid">${T('admin.adminTag')}</span>` : ''}</td>
-            <td>${h(u.email)}</td>
-            <td>${h(u.phone || '—')}</td>
+            <td>${h(u.name)}${u.is_admin ? ` <span class="pill pill-paid">${T('admin.adminTag')}</span>` : ''}<br><span class="muted small">${h(u.email)}</span></td>
+            <td>${tel(u.phone)}</td>
             <td>${h(u.level)}</td>
-            <td>${u.completed}</td>
+            <td><b>${left}</b></td>
+            <td>${u.lessons_held}</td>
             <td>${money(u.paid_total, lang)}</td>
             <td>${date(u.created_at, lang)}</td>
-          </tr>`).join('')}
+            <td class="actions">
+              ${left > 0 ? `<form method="post" action="/admin/users/${u.id}/held"><button class="btn btn-small btn-dark">${T('admin.markHeld')}</button></form>` : ''}
+              ${u.lessons_held > 0 ? `<form method="post" action="/admin/users/${u.id}/undo"><button class="btn btn-small btn-ghost" title="${h(T('admin.undo'))}">↶</button></form>` : ''}
+            </td>
+          </tr>`;
+          }).join('')}
         </tbody>
       </table>
     </div>
@@ -680,4 +598,4 @@ function notFound({ lang, user }) {
   return layout({ lang, title: T('notfound.title'), user, body, bodyClass: 'page-auth' });
 }
 
-module.exports = { home, authPage, dashboard, lessonPage, demoCheckout, account, admin, notFound, LEVEL_CODES };
+module.exports = { home, authPage, dashboard, demoCheckout, account, admin, notFound, LEVEL_CODES };

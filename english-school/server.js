@@ -96,7 +96,7 @@ const isEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 // ---------- Публичные страницы ----------
 
 app.get('/', (req, res) => {
-  res.send(views.home({ lang: req.lang, user: req.user, msg: req.query.msg, lessons: db.lessons.all() }));
+  res.send(views.home({ lang: req.lang, user: req.user, msg: req.query.msg }));
 });
 
 app.post('/request', (req, res) => {
@@ -110,7 +110,7 @@ app.post('/request', (req, res) => {
 
 app.get('/register', (req, res) => {
   if (req.user) return res.redirect('/dashboard');
-  res.send(views.authPage({ lang: req.lang, mode: 'register', msg: req.query.msg }));
+  res.send(views.authPage({ lang: req.lang, mode: 'register', msg: req.query.msg, next: req.query.next }));
 });
 
 app.post('/register', (req, res) => {
@@ -121,7 +121,7 @@ app.post('/register', (req, res) => {
     level: views.LEVEL_CODES.includes(req.body.level) ? req.body.level : 'A1',
   };
   const password = String(req.body.password || '');
-  const fail = (key) => res.status(400).send(views.authPage({ lang: req.lang, mode: 'register', error: t(req.lang, key), values }));
+  const fail = (key) => res.status(400).send(views.authPage({ lang: req.lang, mode: 'register', error: t(req.lang, key), values, next: req.body.next }));
 
   if (!values.name) return fail('err.name');
   if (!isEmail(values.email)) return fail('err.email');
@@ -131,7 +131,7 @@ app.post('/register', (req, res) => {
 
   const userId = db.users.create({ ...values, password });
   startSession(res, userId);
-  res.redirect('/dashboard?msg=registered');
+  res.redirect(req.body.next ? safeNext(req.body.next) : '/dashboard?msg=registered');
 });
 
 app.get('/login', (req, res) => {
@@ -165,8 +165,8 @@ app.get('/dashboard', requireUser, (req, res) => {
     lang: req.lang,
     user: req.user,
     msg: req.query.msg,
-    lessons: db.lessons.forUser(req.user.id),
-    payments: db.payments.forUser(req.user.id),
+    balance: db.lessons.balance(req.user.id),
+    orders: db.orders.forUser(req.user.id),
   }));
 });
 
@@ -197,74 +197,44 @@ app.post('/account/password', requireUser, (req, res) => {
   res.redirect('/account?msg=password_changed');
 });
 
-// ---------- Уроки ----------
-
-function loadLesson(req, res, next) {
-  const lesson = db.lessons.byId(Number(req.params.id));
-  if (!lesson) return res.status(404).send(views.notFound({ lang: req.lang, user: req.user }));
-  req.lesson = lesson;
-  next();
-}
-
-app.get('/lessons/:id', requireUser, loadLesson, (req, res) => {
-  const { lesson, user } = req;
-  const list = db.lessons.forUser(user.id);
-  const index = list.findIndex((l) => l.id === lesson.id);
-  res.send(views.lessonPage({
-    lang: req.lang,
-    user,
-    msg: req.query.msg,
-    lesson,
-    hasAccess: db.lessons.hasAccess(user, lesson),
-    completed: !!list[index].completed,
-    pending: !!list[index].pending,
-    prev: list[index - 1],
-    next: list[index + 1],
-  }));
-});
-
-app.post('/lessons/:id/complete', requireUser, loadLesson, (req, res) => {
-  if (db.lessons.hasAccess(req.user, req.lesson)) db.lessons.complete(req.user.id, req.lesson.id);
-  res.redirect(`/lessons/${req.lesson.id}?msg=completed`);
-});
-
 // ---------- Оплата ----------
 
-function buildPaymentUrl(payment, lesson, user) {
-  const params = { payment: payment.id, lesson: lesson.id, amount: payment.amount, email: user.email };
-  if (/\{(payment|lesson|amount|email)\}/.test(config.paymentUrl)) {
-    return config.paymentUrl.replace(/\{(payment|lesson|amount|email)\}/g, (_, key) => encodeURIComponent(params[key]));
+function buildPaymentUrl(order, user) {
+  const params = { payment: order.id, product: order.product, amount: order.amount, email: user.email };
+  if (/\{(payment|product|amount|email)\}/.test(config.paymentUrl)) {
+    return config.paymentUrl.replace(/\{(payment|product|amount|email)\}/g, (_, key) => encodeURIComponent(params[key]));
   }
   const url = new URL(config.paymentUrl);
   for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
   return url.toString();
 }
 
-// Ссылка «Оплатить урок»: создаёт запись о платеже и отправляет ученика на страницу оплаты.
-app.get('/pay/:id', requireUser, loadLesson, (req, res) => {
-  const { lesson, user } = req;
-  if (db.lessons.hasAccess(user, lesson)) return res.redirect(`/lessons/${lesson.id}`);
-  const payment = db.payments.create(user.id, lesson.id, lesson.price);
-  if (config.paymentUrl) return res.redirect(buildPaymentUrl(payment, lesson, user));
-  res.send(views.demoCheckout({ lang: req.lang, user, lesson, payment }));
+// Посилання «Оплатити»: /pay/single — разове заняття, /pay/monthly — абонемент.
+// Створює замовлення й відправляє учня на сторінку оплати.
+app.get('/pay/:product', requireUser, (req, res) => {
+  const product = config.products[req.params.product];
+  if (!product) return res.status(404).send(views.notFound({ lang: req.lang, user: req.user }));
+  const order = db.orders.create(req.user.id, product);
+  if (config.paymentUrl) return res.redirect(buildPaymentUrl(order, req.user));
+  res.send(views.demoCheckout({ lang: req.lang, user: req.user, product, order }));
 });
 
-// Демо-оплата работает, только пока не указан PAYMENT_URL.
-app.post('/pay/demo/:paymentId', requireUser, (req, res) => {
-  const payment = db.payments.byId(Number(req.params.paymentId));
-  if (config.paymentUrl || !payment || payment.user_id !== req.user.id) {
+// Демо-оплата працює, лише поки не вказано PAYMENT_URL.
+app.post('/pay/demo/:orderId', requireUser, (req, res) => {
+  const order = db.orders.byId(Number(req.params.orderId));
+  if (config.paymentUrl || !order || order.user_id !== req.user.id) {
     return res.status(404).send(views.notFound({ lang: req.lang, user: req.user }));
   }
-  db.payments.markPaid(payment.id);
-  res.redirect(`/lessons/${payment.lesson_id}?msg=paid`);
+  db.orders.markPaid(order.id);
+  res.redirect('/dashboard?msg=paid');
 });
 
-// Адрес возврата после оплаты — укажите его в настройках платёжного сервиса.
+// Адреса повернення після оплати — вкажіть її в налаштуваннях платіжного сервісу.
 app.get('/payment/success', requireUser, (req, res) => {
   res.redirect('/dashboard?msg=payment_pending');
 });
 
-// ---------- Админ-панель ----------
+// ---------- Адмін-панель ----------
 
 app.get('/admin', requireUser, requireAdmin, (req, res) => {
   res.send(views.admin({
@@ -272,19 +242,30 @@ app.get('/admin', requireUser, requireAdmin, (req, res) => {
     user: req.user,
     msg: req.query.msg,
     users: db.users.all(),
-    payments: db.payments.all(),
+    orders: db.orders.all(),
     requests: db.requests.all(),
   }));
 });
 
-app.post('/admin/payments/:id/confirm', requireUser, requireAdmin, (req, res) => {
-  db.payments.markPaid(Number(req.params.id));
+app.post('/admin/orders/:id/confirm', requireUser, requireAdmin, (req, res) => {
+  db.orders.markPaid(Number(req.params.id));
   res.redirect('/admin?msg=confirmed');
 });
 
-app.post('/admin/payments/:id/cancel', requireUser, requireAdmin, (req, res) => {
-  db.payments.cancel(Number(req.params.id));
+app.post('/admin/orders/:id/cancel', requireUser, requireAdmin, (req, res) => {
+  db.orders.cancel(Number(req.params.id));
   res.redirect('/admin?msg=cancelled');
+});
+
+// Відмітка «заняття проведено» списує одне заняття з оплачених.
+app.post('/admin/users/:id/held', requireUser, requireAdmin, (req, res) => {
+  db.lessons.markHeld(Number(req.params.id));
+  res.redirect('/admin?msg=held');
+});
+
+app.post('/admin/users/:id/undo', requireUser, requireAdmin, (req, res) => {
+  db.lessons.undoLast(Number(req.params.id));
+  res.redirect('/admin?msg=undone');
 });
 
 app.use((req, res) => res.status(404).send(views.notFound({ lang: req.lang, user: req.user })));

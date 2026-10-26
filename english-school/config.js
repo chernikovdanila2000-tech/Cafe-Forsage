@@ -1,4 +1,8 @@
 // Налаштування сайту. Усе можна змінити змінними оточення (див. README).
+const lessonPrice = Number(process.env.LESSON_PRICE) || 450;
+const subscriptionLessons = Number(process.env.SUBSCRIPTION_LESSONS) || 8;
+const subscriptionDiscount = Number(process.env.SUBSCRIPTION_DISCOUNT) || 20;
+
 module.exports = {
   port: Number(process.env.PORT) || 3000,
   schoolName: process.env.SCHOOL_NAME || 'Inkwell Academy',
@@ -6,12 +10,23 @@ module.exports = {
   phone: process.env.SCHOOL_PHONE || '+380 (00) 000-00-00',
   email: process.env.SCHOOL_EMAIL || 'hello@inkwell.academy',
   currency: process.env.CURRENCY || '₴',
-  // Індивідуальне заняття з викладачем — єдине, що продається на сайті.
-  lessonPrice: Number(process.env.LESSON_PRICE) || 450,
+  // Індивідуальні заняття з викладачем: разове або абонемент на місяць.
+  lessonPrice,
   lessonDuration: Number(process.env.LESSON_DURATION) || 60,
+  products: {
+    single: { id: 'single', lessons: 1, price: lessonPrice },
+    // Абонемент: 2 заняття на тиждень протягом місяця зі знижкою.
+    monthly: {
+      id: 'monthly',
+      lessons: subscriptionLessons,
+      fullPrice: subscriptionLessons * lessonPrice,
+      discount: subscriptionDiscount,
+      price: Math.round((subscriptionLessons * lessonPrice * (100 - subscriptionDiscount)) / 100),
+    },
+  },
 
   // Посилання на оплату (WayForPay, LiqPay, Plata by mono, Stripe Payment Link тощо).
-  // Можна використовувати підстановки: {payment} {lesson} {amount} {email}.
+  // Можна використовувати підстановки: {payment} {product} {amount} {email}.
   // Якщо підстановок немає, параметри додадуться в кінець посилання.
   // Порожньо — вмикається демо-оплата для перевірки сайту.
   paymentUrl: process.env.PAYMENT_URL || '',

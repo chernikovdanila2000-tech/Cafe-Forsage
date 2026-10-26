@@ -2,7 +2,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
-const lessons = require('./lessons');
 
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data', 'school.db');
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
@@ -29,37 +28,21 @@ db.exec(`
     expires_at TEXT NOT NULL
   );
 
-  CREATE TABLE IF NOT EXISTS lessons (
-    id          INTEGER PRIMARY KEY,
-    slug        TEXT NOT NULL UNIQUE,
-    module      TEXT NOT NULL,
-    level       TEXT NOT NULL,
-    title       TEXT NOT NULL,
-    summary     TEXT NOT NULL,
-    duration    INTEGER NOT NULL,
-    price       INTEGER NOT NULL,
-    is_free     INTEGER NOT NULL DEFAULT 0,
-    theory      TEXT NOT NULL,
-    vocabulary  TEXT NOT NULL,
-    exercises   TEXT NOT NULL,
-    position    INTEGER NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS payments (
+  CREATE TABLE IF NOT EXISTS orders (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    lesson_id  INTEGER NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+    product    TEXT NOT NULL,
+    lessons    INTEGER NOT NULL,
     amount     INTEGER NOT NULL,
     status     TEXT NOT NULL DEFAULT 'pending',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     paid_at    TEXT
   );
 
-  CREATE TABLE IF NOT EXISTS progress (
-    user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    lesson_id    INTEGER NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
-    completed_at TEXT NOT NULL DEFAULT (datetime('now')),
-    PRIMARY KEY (user_id, lesson_id)
+  CREATE TABLE IF NOT EXISTS attendance (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    held_at    TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
   CREATE TABLE IF NOT EXISTS requests (
@@ -71,33 +54,8 @@ db.exec(`
   );
 `);
 
-// Уроки хранятся в lessons.js и синхронизируются с базой при каждом запуске.
-// В базу пишется украинская версия; на сайте тексты берутся из lessons.js на нужном языке.
-const upsertLesson = db.prepare(`
-  INSERT INTO lessons (id, slug, module, level, title, summary, duration, price, is_free, theory, vocabulary, exercises, position)
-  VALUES (:id, :slug, :module, :level, :title, :summary, :duration, :price, :is_free, :theory, :vocabulary, :exercises, :position)
-  ON CONFLICT(id) DO UPDATE SET
-    slug = excluded.slug, module = excluded.module, level = excluded.level, title = excluded.title,
-    summary = excluded.summary, duration = excluded.duration, price = excluded.price, is_free = excluded.is_free,
-    theory = excluded.theory, vocabulary = excluded.vocabulary, exercises = excluded.exercises, position = excluded.position
-`);
-lessons.forEach((l, i) => {
-  upsertLesson.run({
-    id: l.id,
-    slug: l.slug,
-    module: l.module.uk,
-    level: l.level,
-    title: l.title.uk,
-    summary: l.summary.uk,
-    duration: l.duration,
-    price: l.price,
-    is_free: l.free ? 1 : 0,
-    theory: l.theory.uk,
-    vocabulary: JSON.stringify(l.vocabulary),
-    exercises: JSON.stringify(l.exercises),
-    position: i,
-  });
-});
+// Таблиці старої версії сайту (уроки за темами) більше не потрібні.
+db.exec('DROP TABLE IF EXISTS progress; DROP TABLE IF EXISTS payments; DROP TABLE IF EXISTS lessons;');
 
 // ---------- Пароли ----------
 
@@ -142,8 +100,9 @@ const users = {
   all() {
     return db.prepare(`
       SELECT u.*,
-        (SELECT COUNT(*) FROM progress p WHERE p.user_id = u.id) AS completed,
-        (SELECT COALESCE(SUM(amount), 0) FROM payments pm WHERE pm.user_id = u.id AND pm.status = 'paid') AS paid_total
+        (SELECT COALESCE(SUM(amount), 0) FROM orders o WHERE o.user_id = u.id AND o.status = 'paid') AS paid_total,
+        (SELECT COALESCE(SUM(lessons), 0) FROM orders o WHERE o.user_id = u.id AND o.status = 'paid') AS lessons_bought,
+        (SELECT COUNT(*) FROM attendance a WHERE a.user_id = u.id) AS lessons_held
       FROM users u ORDER BY u.created_at DESC
     `).all();
   },
@@ -175,70 +134,52 @@ const sessions = {
   },
 };
 
-// ---------- Уроки ----------
+// ---------- Замовлення (разове заняття або абонемент) ----------
 
-function parseLesson(row) {
-  if (!row) return null;
-  return { ...row, vocabulary: JSON.parse(row.vocabulary), exercises: JSON.parse(row.exercises) };
-}
-
-const lessonsRepo = {
-  all() {
-    return db.prepare('SELECT id, slug, module, level, title, summary, duration, price, is_free, position FROM lessons ORDER BY position').all();
+const orders = {
+  create(userId, product) {
+    // Не плодимо однакові неоплачені замовлення: повертаємо вже відкрите.
+    const open = db.prepare("SELECT * FROM orders WHERE user_id = ? AND product = ? AND status = 'pending'").get(userId, product.id);
+    if (open) return open;
+    const result = db.prepare('INSERT INTO orders (user_id, product, lessons, amount) VALUES (?, ?, ?, ?)')
+      .run(userId, product.id, product.lessons, product.price);
+    return db.prepare('SELECT * FROM orders WHERE id = ?').get(result.lastInsertRowid);
   },
   byId(id) {
-    return parseLesson(db.prepare('SELECT * FROM lessons WHERE id = ?').get(id));
+    return db.prepare('SELECT * FROM orders WHERE id = ?').get(id);
   },
-  // Список уроков со статусом для конкретного ученика.
+  markPaid(id) {
+    db.prepare("UPDATE orders SET status = 'paid', paid_at = datetime('now') WHERE id = ? AND status = 'pending'").run(id);
+  },
+  cancel(id) {
+    db.prepare("UPDATE orders SET status = 'cancelled' WHERE id = ? AND status = 'pending'").run(id);
+  },
   forUser(userId) {
+    return db.prepare('SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC, id DESC').all(userId);
+  },
+  all() {
     return db.prepare(`
-      SELECT l.id, l.slug, l.module, l.level, l.title, l.summary, l.duration, l.price, l.is_free,
-        EXISTS(SELECT 1 FROM payments p WHERE p.user_id = :uid AND p.lesson_id = l.id AND p.status = 'paid') AS paid,
-        EXISTS(SELECT 1 FROM payments p WHERE p.user_id = :uid AND p.lesson_id = l.id AND p.status = 'pending') AS pending,
-        EXISTS(SELECT 1 FROM progress pr WHERE pr.user_id = :uid AND pr.lesson_id = l.id) AS completed
-      FROM lessons l ORDER BY l.position
-    `).all({ uid: userId });
-  },
-  hasAccess(user, lesson) {
-    if (lesson.is_free || user.is_admin) return true;
-    return !!db.prepare("SELECT 1 FROM payments WHERE user_id = ? AND lesson_id = ? AND status = 'paid'").get(user.id, lesson.id);
-  },
-  complete(userId, lessonId) {
-    db.prepare('INSERT OR IGNORE INTO progress (user_id, lesson_id) VALUES (?, ?)').run(userId, lessonId);
+      SELECT o.*, u.name AS user_name, u.email AS user_email, u.phone AS user_phone
+      FROM orders o JOIN users u ON u.id = o.user_id
+      ORDER BY (o.status = 'pending') DESC, o.created_at DESC, o.id DESC
+    `).all();
   },
 };
 
-// ---------- Платежи ----------
+// ---------- Облік занять ----------
 
-const payments = {
-  create(userId, lessonId, amount) {
-    // Не плодим одинаковые ожидающие платежи: переиспользуем открытый.
-    const open = db.prepare("SELECT * FROM payments WHERE user_id = ? AND lesson_id = ? AND status = 'pending'").get(userId, lessonId);
-    if (open) return open;
-    const result = db.prepare('INSERT INTO payments (user_id, lesson_id, amount) VALUES (?, ?, ?)').run(userId, lessonId, amount);
-    return db.prepare('SELECT * FROM payments WHERE id = ?').get(result.lastInsertRowid);
+const lessons = {
+  // Скільки занять оплачено, проведено й лишилося.
+  balance(userId) {
+    const bought = db.prepare("SELECT COALESCE(SUM(lessons), 0) AS n FROM orders WHERE user_id = ? AND status = 'paid'").get(userId).n;
+    const held = db.prepare('SELECT COUNT(*) AS n FROM attendance WHERE user_id = ?').get(userId).n;
+    return { bought, held, left: Math.max(bought - held, 0) };
   },
-  byId(id) {
-    return db.prepare('SELECT * FROM payments WHERE id = ?').get(id);
+  markHeld(userId) {
+    if (this.balance(userId).left > 0) db.prepare('INSERT INTO attendance (user_id) VALUES (?)').run(userId);
   },
-  markPaid(id) {
-    db.prepare("UPDATE payments SET status = 'paid', paid_at = datetime('now') WHERE id = ?").run(id);
-  },
-  cancel(id) {
-    db.prepare("UPDATE payments SET status = 'cancelled' WHERE id = ? AND status = 'pending'").run(id);
-  },
-  forUser(userId) {
-    return db.prepare(`
-      SELECT p.*, l.title AS lesson_title FROM payments p JOIN lessons l ON l.id = p.lesson_id
-      WHERE p.user_id = ? ORDER BY p.created_at DESC, p.id DESC
-    `).all(userId);
-  },
-  all() {
-    return db.prepare(`
-      SELECT p.*, l.title AS lesson_title, u.name AS user_name, u.email AS user_email, u.phone AS user_phone
-      FROM payments p JOIN lessons l ON l.id = p.lesson_id JOIN users u ON u.id = p.user_id
-      ORDER BY (p.status = 'pending') DESC, p.created_at DESC, p.id DESC
-    `).all();
+  undoLast(userId) {
+    db.prepare('DELETE FROM attendance WHERE id = (SELECT MAX(id) FROM attendance WHERE user_id = ?)').run(userId);
   },
 };
 
@@ -270,4 +211,4 @@ function ensureAdmin() {
   }
 }
 
-module.exports = { db, users, sessions, lessons: lessonsRepo, payments, requests, ensureAdmin };
+module.exports = { db, users, sessions, orders, lessons, requests, ensureAdmin };
