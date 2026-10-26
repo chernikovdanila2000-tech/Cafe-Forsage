@@ -1,0 +1,15 @@
+{
+  "name": "english-school",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Сайт школы английского языка: лендинг, личный кабинет с уроками, оплата, база аккаунтов",
+  "main": "server.js",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
