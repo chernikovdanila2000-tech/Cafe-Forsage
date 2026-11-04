@@ -1,73 +1,107 @@
-// Налаштування сайту. Усе можна змінити змінними оточення (див. README).
-const lessonPrice = Number(process.env.LESSON_PRICE) || 450;
-const subscriptionLessons = Number(process.env.SUBSCRIPTION_LESSONS) || 8;
-const subscriptionDiscount = Number(process.env.SUBSCRIPTION_DISCOUNT) || 20;
+// Налаштування сайту.
+// Більшість значень редагується в адмін-панелі (/admin/settings) і зберігається в базі.
+// Якщо в адмінці поле порожнє, береться змінна оточення (Railway → Variables), а потім — значення за замовчуванням.
 
-module.exports = {
+const db = require('./db');
+
+// Поля, які можна змінити в адмін-панелі: ключ → [змінна оточення, значення за замовчуванням].
+const EDITABLE = {
+  phone: ['SCHOOL_PHONE', ''],
+  email: ['SCHOOL_EMAIL', ''],
+  telegram: ['SCHOOL_TELEGRAM', ''],
+  instagram: ['SCHOOL_INSTAGRAM', ''],
+  lessonPrice: ['LESSON_PRICE', '450'],
+  packageLessons: ['SUBSCRIPTION_LESSONS', '8'],
+  packageDiscount: ['SUBSCRIPTION_DISCOUNT', '20'],
+  paymentUrl: ['PAYMENT_URL', ''],
+  paymentDetails: ['PAYMENT_DETAILS', ''],
+  legalSeller: ['LEGAL_SELLER', ''],
+  legalTaxId: ['LEGAL_TAX_ID', ''],
+  legalAddress: ['LEGAL_ADDRESS', ''],
+  siteUrl: ['SITE_URL', ''],
+  metaPixelId: ['META_PIXEL_ID', ''],
+  gaId: ['GA_MEASUREMENT_ID', ''],
+  tgBotToken: ['TELEGRAM_BOT_TOKEN', ''],
+  tgChatId: ['TELEGRAM_CHAT_ID', ''],
+};
+
+const production = db.onRailway || process.env.NODE_ENV === 'production';
+
+// Налаштування читаються з бази при кожному зверненні, тож зміни в адмінці діють одразу.
+function value(key) {
+  const stored = db.settings.all()[key];
+  if (stored !== undefined && stored !== '') return stored;
+  const [env, fallback] = EDITABLE[key];
+  return process.env[env] || fallback;
+}
+
+const number = (key, min, max) => {
+  const n = Math.round(Number(value(key)));
+  return Number.isFinite(n) && n >= min && n <= max ? n : Number(EDITABLE[key][1]);
+};
+
+const config = {
+  EDITABLE,
+  production,
   port: Number(process.env.PORT) || 3000,
   schoolName: process.env.SCHOOL_NAME || 'Inkwell Academy',
   tagline: process.env.SCHOOL_TAGLINE || 'School of English',
-  phone: process.env.SCHOOL_PHONE || '+380 (00) 000-00-00',
-  email: process.env.SCHOOL_EMAIL || 'hello@inkwell.academy',
-  currency: process.env.CURRENCY || '₴',
-  // Індивідуальні заняття з викладачем: разове або абонемент на місяць.
-  lessonPrice,
-  lessonDuration: Number(process.env.LESSON_DURATION) || 60,
-  products: {
-    single: { id: 'single', lessons: 1, price: lessonPrice },
-    // Абонемент: 2 заняття на тиждень протягом місяця зі знижкою.
-    monthly: {
-      id: 'monthly',
-      lessons: subscriptionLessons,
-      fullPrice: subscriptionLessons * lessonPrice,
-      discount: subscriptionDiscount,
-      price: Math.round((subscriptionLessons * lessonPrice * (100 - subscriptionDiscount)) / 100),
-    },
+  currency: '₴',
+  lessonDuration: 60,
+  consultationMinutes: 20,
+
+  // На Railway сайт завжди працює через HTTPS, тож cookie передаються лише захищеним каналом.
+  secureCookies: production || process.env.SECURE_COOKIES === 'true',
+
+  // Демо-оплата (кнопка, що одразу зараховує заняття) — тільки для перевірки на своєму комп'ютері.
+  // На робочому сервері вона вимкнена, щоб ніхто не отримав заняття без оплати.
+  demoPayments: process.env.DEMO_PAYMENTS ? process.env.DEMO_PAYMENTS === 'true' : !production,
+
+  get: value,
+
+  get phone() { return value('phone'); },
+  get email() { return value('email'); },
+  get telegram() { return value('telegram'); },
+  get instagram() { return value('instagram'); },
+  get paymentUrl() { return value('paymentUrl'); },
+  get paymentDetails() { return value('paymentDetails'); },
+  get metaPixelId() { return value('metaPixelId'); },
+  get gaId() { return value('gaId'); },
+  get siteUrl() { return value('siteUrl').replace(/\/+$/, ''); },
+
+  get lessonPrice() { return number('lessonPrice', 1, 100000); },
+
+  // Разове заняття та абонемент на місяць зі знижкою.
+  get products() {
+    const price = this.lessonPrice;
+    const lessons = number('packageLessons', 2, 50);
+    const discount = number('packageDiscount', 0, 90);
+    return {
+      single: { id: 'single', lessons: 1, price },
+      monthly: {
+        id: 'monthly',
+        lessons,
+        discount,
+        fullPrice: lessons * price,
+        price: Math.round((lessons * price * (100 - discount)) / 100),
+      },
+    };
   },
 
-  // Посилання на оплату (WayForPay, LiqPay, Plata by mono, Stripe Payment Link тощо).
-  // Можна використовувати підстановки: {payment} {product} {amount} {email}.
-  // Якщо підстановок немає, параметри додадуться в кінець посилання.
-  // Порожньо — вмикається демо-оплата для перевірки сайту.
-  paymentUrl: process.env.PAYMENT_URL || '',
-
-  // Реквізити для оферти й політики конфіденційності (ФОП або юрособа, що надає послуги).
-  legal: {
-    seller: process.env.LEGAL_SELLER || '',
-    taxId: process.env.LEGAL_TAX_ID || '',
-    address: process.env.LEGAL_ADDRESS || '',
-    site: process.env.SITE_URL || 'https://inkwell.academy',
-    updated: process.env.LEGAL_UPDATED || '26.10.2026',
+  // Реквізити для оферти й політики конфіденційності.
+  get legal() {
+    return {
+      seller: value('legalSeller'),
+      taxId: value('legalTaxId'),
+      address: value('legalAddress'),
+      site: value('siteUrl'),
+      updated: process.env.LEGAL_UPDATED || '04.11.2026',
+    };
   },
 
-  // Вмикайте, коли сайт працює через HTTPS: cookie передаватиметься лише захищеним каналом.
-  secureCookies: process.env.SECURE_COOKIES === 'true',
-
-  // Замініть на справжніх викладачів школи.
-  teachers: [
-    {
-      name: { uk: 'Олена Коваленко', en: 'Olena Kovalenko' },
-      role: { uk: 'Методистка · CELTA', en: 'Head of studies · CELTA' },
-      about: {
-        uk: 'Відповідає за програму курсу. Допомагає розібратися в граматиці без страху й зубріння.',
-        en: 'Designs the course programme and makes grammar clear, without fear or cramming.',
-      },
-    },
-    {
-      name: { uk: 'Андрій Мельник', en: 'Andrii Melnyk' },
-      role: { uk: 'Розмовна англійська', en: 'Speaking practice' },
-      about: {
-        uk: 'Веде практику для тих, хто розуміє мову, але соромиться говорити.',
-        en: 'Runs speaking practice for those who understand English but feel shy to speak.',
-      },
-    },
-    {
-      name: { uk: 'Ірина Бондар', en: 'Iryna Bondar' },
-      role: { uk: 'Бізнес-англійська · IELTS', en: 'Business English · IELTS' },
-      about: {
-        uk: 'Готує до співбесід, переговорів і міжнародних іспитів.',
-        en: 'Prepares students for job interviews, negotiations and international exams.',
-      },
-    },
-  ],
+  get telegramBot() {
+    return { token: value('tgBotToken'), chatId: value('tgChatId') };
+  },
 };
+
+module.exports = config;

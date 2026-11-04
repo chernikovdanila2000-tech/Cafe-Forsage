@@ -14,6 +14,9 @@ if (storageWarning) {
   console.warn(`\n  УВАГА: база ${DB_PATH} не на постійному диску (Volume).\n  Акаунти й оплати зникатимуть після кожного оновлення сайту.\n  Підключіть Volume у Railway: правою кнопкою по сервісу → Attach Volume, шлях /data.\n`);
 }
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+// Завантажені фото викладачів лежать поруч із базою — на тому ж постійному диску.
+const UPLOADS_DIR = path.join(path.dirname(DB_PATH), 'uploads');
+fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 const db = new DatabaseSync(DB_PATH);
 
 db.exec(`
@@ -66,6 +69,39 @@ db.exec(`
 // Таблиці старої версії сайту (уроки за темами) більше не потрібні.
 db.exec('DROP TABLE IF EXISTS progress; DROP TABLE IF EXISTS payments; DROP TABLE IF EXISTS lessons;');
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS teachers (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT NOT NULL,
+    role       TEXT,
+    about      TEXT,
+    photo      TEXT,
+    position   INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS reviews (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT NOT NULL,
+    text       TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+// Нові колонки в таблицях, створених попередніми версіями сайту.
+function addColumn(table, column, definition) {
+  const exists = db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === column);
+  if (!exists) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
+addColumn('users', 'source', 'TEXT');
+addColumn('requests', 'source', 'TEXT');
+addColumn('requests', 'status', "TEXT NOT NULL DEFAULT 'new'");
+
 // ---------- Пароли ----------
 
 function hashPassword(password) {
@@ -84,10 +120,10 @@ function verifyPassword(password, stored) {
 // ---------- Пользователи ----------
 
 const users = {
-  create({ name, email, phone, password, level, isAdmin = false }) {
+  create({ name, email, phone, password, level, source, isAdmin = false }) {
     const result = db
-      .prepare('INSERT INTO users (name, email, phone, password_hash, level, is_admin) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(name, email.toLowerCase(), phone || null, hashPassword(password), level || 'A1', isAdmin ? 1 : 0);
+      .prepare('INSERT INTO users (name, email, phone, password_hash, level, source, is_admin) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(name, email.toLowerCase(), phone || null, hashPassword(password), level || 'A1', source || null, isAdmin ? 1 : 0);
     return Number(result.lastInsertRowid);
   },
   byEmail(email) {
@@ -105,6 +141,13 @@ const users = {
   },
   updatePassword(id, password) {
     db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(password), id);
+  },
+  // Скидання пароля адміністратором: новий тимчасовий пароль, усі входи учня завершуються.
+  resetPassword(id) {
+    const password = crypto.randomBytes(6).toString('base64url');
+    this.updatePassword(id, password);
+    db.prepare('DELETE FROM sessions WHERE user_id = ?').run(id);
+    return password;
   },
   all() {
     return db.prepare(`
@@ -149,7 +192,14 @@ const orders = {
   create(userId, product) {
     // Не плодимо однакові неоплачені замовлення: повертаємо вже відкрите.
     const open = db.prepare("SELECT * FROM orders WHERE user_id = ? AND product = ? AND status = 'pending'").get(userId, product.id);
-    if (open) return open;
+    // Ціна могла змінитися в налаштуваннях — оновлюємо суму відкритого замовлення.
+    if (open) {
+      if (open.amount !== product.price || open.lessons !== product.lessons) {
+        db.prepare('UPDATE orders SET amount = ?, lessons = ? WHERE id = ?').run(product.price, product.lessons, open.id);
+        return { ...open, amount: product.price, lessons: product.lessons };
+      }
+      return open;
+    }
     const result = db.prepare('INSERT INTO orders (user_id, product, lessons, amount) VALUES (?, ?, ?, ?)')
       .run(userId, product.id, product.lessons, product.price);
     return db.prepare('SELECT * FROM orders WHERE id = ?').get(result.lastInsertRowid);
@@ -157,8 +207,9 @@ const orders = {
   byId(id) {
     return db.prepare('SELECT * FROM orders WHERE id = ?').get(id);
   },
+  // Повертає true, якщо замовлення справді перейшло в «оплачено» (а не було оплачене раніше).
   markPaid(id) {
-    db.prepare("UPDATE orders SET status = 'paid', paid_at = datetime('now') WHERE id = ? AND status = 'pending'").run(id);
+    return db.prepare("UPDATE orders SET status = 'paid', paid_at = datetime('now') WHERE id = ? AND status = 'pending'").run(id).changes > 0;
   },
   cancel(id) {
     db.prepare("UPDATE orders SET status = 'cancelled' WHERE id = ? AND status = 'pending'").run(id);
@@ -195,13 +246,64 @@ const lessons = {
 // ---------- Заявки на пробный урок ----------
 
 const requests = {
-  create({ name, contact, message }) {
-    db.prepare('INSERT INTO requests (name, contact, message) VALUES (?, ?, ?)').run(name, contact, message || null);
+  create({ name, contact, message, source }) {
+    db.prepare('INSERT INTO requests (name, contact, message, source) VALUES (?, ?, ?, ?)').run(name, contact, message || null, source || null);
   },
   all() {
-    return db.prepare('SELECT * FROM requests ORDER BY created_at DESC, id DESC').all();
+    return db.prepare("SELECT * FROM requests ORDER BY (status = 'new') DESC, created_at DESC, id DESC").all();
+  },
+  setStatus(id, status) {
+    db.prepare('UPDATE requests SET status = ? WHERE id = ?').run(status === 'done' ? 'done' : 'new', id);
+  },
+  remove(id) {
+    db.prepare('DELETE FROM requests WHERE id = ?').run(id);
   },
 };
+
+// ---------- Налаштування сайту (редагуються в адмін-панелі) ----------
+
+const settings = {
+  all() {
+    return Object.fromEntries(db.prepare('SELECT key, value FROM settings').all().map((r) => [r.key, r.value]));
+  },
+  save(values) {
+    const upsert = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value');
+    for (const [key, value] of Object.entries(values)) upsert.run(key, String(value ?? ''));
+  },
+};
+
+// ---------- Викладачі та відгуки ----------
+
+const teachers = {
+  all() {
+    return db.prepare('SELECT * FROM teachers ORDER BY position, id').all();
+  },
+  create({ name, role, about, photo }) {
+    const next = db.prepare('SELECT COALESCE(MAX(position), 0) + 1 AS n FROM teachers').get().n;
+    db.prepare('INSERT INTO teachers (name, role, about, photo, position) VALUES (?, ?, ?, ?, ?)').run(name, role || null, about || null, photo || null, next);
+  },
+  update(id, { name, role, about, photo }) {
+    db.prepare('UPDATE teachers SET name = ?, role = ?, about = ?, photo = ? WHERE id = ?').run(name, role || null, about || null, photo || null, id);
+  },
+  remove(id) {
+    db.prepare('DELETE FROM teachers WHERE id = ?').run(id);
+  },
+};
+
+const reviews = {
+  all() {
+    return db.prepare('SELECT * FROM reviews ORDER BY id DESC').all();
+  },
+  create({ name, text }) {
+    db.prepare('INSERT INTO reviews (name, text) VALUES (?, ?)').run(name, text);
+  },
+  remove(id) {
+    db.prepare('DELETE FROM reviews WHERE id = ?').run(id);
+  },
+};
+
+// Перевірка, що база відповідає (для /health).
+const ping = () => db.prepare('SELECT 1 AS ok').get().ok === 1;
 
 // ---------- Администратор ----------
 
@@ -220,4 +322,4 @@ function ensureAdmin() {
   }
 }
 
-module.exports = { storageWarning, db, users, sessions, orders, lessons, requests, ensureAdmin };
+module.exports = { UPLOADS_DIR, storageWarning, onRailway, db, users, sessions, orders, lessons, requests, settings, teachers, reviews, ping, ensureAdmin };

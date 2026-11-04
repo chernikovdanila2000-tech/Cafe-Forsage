@@ -12,3 +12,10 @@ if (toggle) {
     })
   );
 }
+
+// Підтвердження небезпечних дій в адмін-панелі (видалення, скидання пароля)
+document.querySelectorAll('form[data-confirm]').forEach((form) => {
+  form.addEventListener('submit', (event) => {
+    if (!window.confirm(form.dataset.confirm)) event.preventDefault();
+  });
+});
