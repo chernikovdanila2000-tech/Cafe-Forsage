@@ -668,7 +668,7 @@ function legalPage(ctx, { html, title }) {
 <section class="dash">
   <div class="container container-narrow">
     ${note ? `<div class="flash flash-info" lang="en">${note}</div>` : ''}
-    <article class="legal" lang="uk">${html}</article>
+    <article class="legal" lang="${ctx.lang}">${html}</article>
   </div>
 </section>`;
   return layout(ctx, { title, body, bodyClass: 'page-app' });

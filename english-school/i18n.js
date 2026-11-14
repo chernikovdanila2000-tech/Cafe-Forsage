@@ -652,7 +652,7 @@ const dict = {
     'account.new': 'New password',
     'account.update': 'Update password',
 
-    'legal.enNote': 'This document is published in Ukrainian, which is the legally binding version.',
+    'legal.enNote': 'This English version is a translation provided for convenience. In case of any discrepancy, the <a href="/lang/uk">Ukrainian version</a> prevails.',
 
     'notfound.title': 'Page not found',
     'notfound.text': 'The link may be outdated or there is a typo in the address.',

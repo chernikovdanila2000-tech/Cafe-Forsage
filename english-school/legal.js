@@ -1,28 +1,33 @@
-// Публічна оферта й політика конфіденційності (українською — мовою, що має юридичну силу).
-// Це шаблон: перед запуском оплат заповніть реквізити (LEGAL_SELLER, LEGAL_TAX_ID, LEGAL_ADDRESS)
-// і бажано покажіть текст юристу.
+// Публічна оферта й політика конфіденційності.
+// Юридичну силу має українська версія; англійська — переклад для зручності, з тими самими пунктами.
+// Це шаблон: перед запуском оплат заповніть реквізити в адмін-панелі й бажано покажіть текст юристу.
+// Змінюючи пункт в одній мові, змініть його й в іншій.
 
 const config = require('./config');
 
 const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 const h = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ESC[c]);
 const fill = (value, hint) => (value ? h(value) : `<mark class="fill">[${h(hint)}]</mark>`);
-const uah = (amount) => `${Number(amount).toLocaleString('uk-UA')} грн`;
+const uah = (amount) => `${Number(amount).toLocaleString('uk-UA', { maximumFractionDigits: 0 })} грн`;
+const UAH = (amount) => `UAH ${Number(amount).toLocaleString('en-GB', { maximumFractionDigits: 0 })}`;
 
-function details() {
+function details(lang = 'uk') {
   const { legal, phone, email } = config;
+  const L = lang === 'en'
+    ? ['Provider', 'Tax ID', 'Address', 'Phone', 'Email', 'Website', 'enter', 'full name of the sole proprietor or company', 'tax ID', 'registered address', 'phone', 'email', 'website address']
+    : ['Виконавець', 'РНОКПП / ЄДРПОУ', 'Адреса', 'Телефон', 'Email', 'Сайт', 'вкажіть', 'ПІБ ФОП або назву компанії', 'податковий номер', 'адресу реєстрації', 'телефон', 'email', 'адресу сайту'];
   return `
     <ul class="legal-details">
-      <li><b>Виконавець:</b> ${fill(legal.seller, 'вкажіть ПІБ ФОП або назву компанії')}</li>
-      <li><b>РНОКПП / ЄДРПОУ:</b> ${fill(legal.taxId, 'вкажіть податковий номер')}</li>
-      <li><b>Адреса:</b> ${fill(legal.address, 'вкажіть адресу реєстрації')}</li>
-      <li><b>Телефон:</b> ${fill(phone, 'вкажіть телефон')}</li>
-      <li><b>Email:</b> ${fill(email, 'вкажіть email')}</li>
-      <li><b>Сайт:</b> ${fill(legal.site, 'вкажіть адресу сайту')}</li>
+      <li><b>${L[0]}:</b> ${fill(legal.seller, `${L[6]} ${L[7]}`)}</li>
+      <li><b>${L[1]}:</b> ${fill(legal.taxId, `${L[6]} ${L[8]}`)}</li>
+      <li><b>${L[2]}:</b> ${fill(legal.address, `${L[6]} ${L[9]}`)}</li>
+      <li><b>${L[3]}:</b> ${fill(phone, `${L[6]} ${L[10]}`)}</li>
+      <li><b>${L[4]}:</b> ${fill(email, `${L[6]} ${L[11]}`)}</li>
+      <li><b>${L[5]}:</b> ${fill(legal.site, `${L[6]} ${L[12]}`)}</li>
     </ul>`;
 }
 
-function offer() {
+function offerUk() {
   const { legal, products, lessonDuration: min } = config;
   const { single, monthly } = products;
   const school = config.schoolName;
@@ -104,7 +109,7 @@ function analyticsText() {
   return `<p>Також використовуються аналітичні й рекламні cookie сервісів ${tools.join(' та ')}: вони допомагають оцінити ефективність реклами й показувати її тим, кому вона може бути цікава. Ви можете заборонити такі cookie в налаштуваннях браузера.</p>`;
 }
 
-function privacy() {
+function privacyUk() {
   const { legal } = config;
   return `
 <h1>Політика конфіденційності</h1>
@@ -148,5 +153,136 @@ ${analyticsText()}
 <h2>8. Контакти</h2>
 ${details()}`;
 }
+
+// ---------- English translation ----------
+
+function offerEn() {
+  const { legal, products, lessonDuration: min } = config;
+  const { single, monthly } = products;
+  const school = config.schoolName;
+  return `
+<h1>Public Offer Agreement for Educational Services</h1>
+<p class="legal-updated">Version of ${h(legal.updated)}</p>
+
+<h2>1. General provisions</h2>
+<p>1.1. This agreement is a public offer under Articles 633 and 641 of the Civil Code of Ukraine. ${fill(legal.seller, 'full name of the sole proprietor or company')} (the "Provider"), operating under the brand "${h(school)}", offers any legally capable individual (the "Customer") to enter into a service agreement on the terms set out below.</p>
+<p>1.2. Under Article 642 of the Civil Code of Ukraine, the Customer's payment for services on the website ${fill(legal.site, 'website address')} (the "Website") constitutes full and unconditional acceptance of this offer. The agreement is concluded at the moment of payment.</p>
+<p>1.3. If the Customer is under 18, the agreement is concluded and the services are paid for by their parent or other legal guardian.</p>
+
+<h2>2. Definitions</h2>
+<p><b>Lesson</b> — a one-to-one online English lesson lasting ${min} minutes, taught by the Provider's teacher to one Customer.</p>
+<p><b>Single lesson</b> — payment for one Lesson.</p>
+<p><b>Package</b> — a prepaid bundle of ${monthly.lessons} Lessons intended for one calendar month (about 2 Lessons a week).</p>
+<p><b>Personal account</b> — the section of the Website where the Customer pays for services and sees the number of paid and completed Lessons.</p>
+
+<h2>3. Subject of the agreement</h2>
+<p>3.1. The Provider undertakes to provide the Customer with English language tuition in the form of one-to-one online lessons, and the Customer undertakes to pay for these services.</p>
+<p>3.2. The content of the lessons (speaking, grammar, vocabulary, pronunciation, listening, writing) is determined by the teacher individually, based on the Customer's level and goals.</p>
+<p>3.3. Lessons are held remotely via Zoom, Google Meet or another video service agreed by the parties.</p>
+<p>3.4. The services do not lead to a state-recognised educational certificate.</p>
+
+<h2>4. Prices and payment</h2>
+<p>4.1. Prices as of the date of this version:</p>
+<ul>
+  <li>Single lesson (${min} min) — <b>${UAH(single.price)}</b>;</li>
+  <li>Package (${monthly.lessons} lessons of ${min} min) — <b>${UAH(monthly.price)}</b> (a ${monthly.discount}% discount on the price of ${monthly.lessons} single lessons, ${UAH(monthly.fullPrice)}).</li>
+</ul>
+<p>4.2. Current prices are shown on the Website. The Provider may change prices; changes do not apply to Lessons already paid for.</p>
+<p>4.3. Payment is made in Ukrainian hryvnias, 100% in advance, via the payment methods available on the Website. The Customer's payment obligation is fulfilled when the funds are received by the Provider.</p>
+<p>4.4. The free level-check consultation is not a Lesson and requires no payment.</p>
+
+<h2>5. Provision of services</h2>
+<p>5.1. After payment, the teacher contacts the Customer by the phone number or email given in the Personal account and agrees on the lesson schedule.</p>
+<p>5.2. A Package is valid for 30 calendar days from the date of payment. Lessons missed for good reason (illness, rescheduling by the Provider, etc.) may be rescheduled by agreement of the parties.</p>
+<p>5.3. The Customer may reschedule a Lesson by notifying the teacher at least 24 hours before it starts. If the Customer does not give timely notice or does not attend, the Lesson is considered completed.</p>
+<p>5.4. If the Provider reschedules a Lesson, it is held at another agreed time at no extra cost.</p>
+<p>5.5. If the Customer is late, the Lesson ends at the scheduled time. If the teacher is late, the Lesson is extended or the time is made up in the next Lesson.</p>
+<p>5.6. Completed Lessons are recorded in the Personal account (number of completed Lessons and remaining paid Lessons).</p>
+
+<h2>6. Rights and obligations of the parties</h2>
+<p>6.1. The Provider shall: provide services properly and at the agreed time; ensure Lessons are taught by a qualified teacher; keep the Customer's personal data confidential.</p>
+<p>6.2. The Provider may: change the teacher after notifying the Customer; refuse to provide services in case of abusive behaviour by the Customer, refunding the cost of Lessons not yet held.</p>
+<p>6.3. The Customer shall: provide accurate contact details; pay for services on time; attend Lessons on time with a stable internet connection, a camera and a microphone.</p>
+<p>6.4. The Customer may: receive services under this agreement; reschedule Lessons under clause 5.3; withdraw from the agreement under section 7.</p>
+
+<h2>7. Withdrawal and refunds</h2>
+<p>7.1. The Customer may withdraw from the agreement at any time by sending a request to ${fill(config.email, 'school email')}.</p>
+<p>7.2. In this case, the Provider refunds the cost of Lessons not yet held. For a Package, the cost of one Lesson is the Package price divided by the number of Lessons in it (${UAH(monthly.price / monthly.lessons)}).</p>
+<p>7.3. Refunds are made by the same method as the payment, within 7 business days of receiving the request. The time for funds to arrive depends on the Customer's bank.</p>
+<p>7.4. Lessons that have been held, and Lessons considered completed under clause 5.3, are not refundable.</p>
+
+<h2>8. Liability</h2>
+<p>8.1. The parties are liable for failure to perform this agreement in accordance with the laws of Ukraine.</p>
+<p>8.2. The Provider is not liable if a Lesson cannot take place due to technical problems on the Customer's side (internet, equipment, software).</p>
+<p>8.3. Learning results depend, among other things, on the regularity of lessons and on the Customer completing homework, so the Provider does not guarantee reaching a specific level within a specific time.</p>
+
+<h2>9. Force majeure</h2>
+<p>The parties are released from liability for failure to meet their obligations caused by force majeure (including martial law, air-raid alerts, prolonged power or communication outages). Lessons that did not take place for these reasons are rescheduled to another agreed time.</p>
+
+<h2>10. Personal data</h2>
+<p>By paying for the services, the Customer consents to the processing of their personal data under the Law of Ukraine "On Personal Data Protection" on the terms of the <a href="/privacy">Privacy Policy</a>.</p>
+
+<h2>11. Term and amendments</h2>
+<p>11.1. The agreement remains in force until the parties have fully performed their obligations.</p>
+<p>11.2. The Provider may amend this offer by publishing a new version on the Website. A new version does not apply to services already paid for.</p>
+<p>11.3. The parties resolve all disputes by negotiation and, failing agreement, in accordance with the laws of Ukraine.</p>
+
+<h2>12. Provider details</h2>
+${details('en')}`;
+}
+
+function analyticsTextEn() {
+  const tools = [config.metaPixelId && 'Meta Pixel (Meta Platforms)', config.gaId && 'Google Analytics (Google)'].filter(Boolean);
+  if (!tools.length) return '';
+  return `<p>We also use analytics and advertising cookies from ${tools.join(' and ')}: they help us measure how well our ads work and show them to people who may be interested. You can block these cookies in your browser settings.</p>`;
+}
+
+function privacyEn() {
+  const { legal } = config;
+  return `
+<h1>Privacy Policy</h1>
+<p class="legal-updated">Version of ${h(legal.updated)}</p>
+
+<h2>1. Who processes the data</h2>
+<p>The controller of personal data collected on the website ${fill(legal.site, 'website address')} is ${fill(legal.seller, 'full name of the sole proprietor or company')}. Data is processed in accordance with the Law of Ukraine "On Personal Data Protection".</p>
+
+<h2>2. What data we collect</h2>
+<ul>
+  <li>when you sign up: your name, email, phone number and English level;</li>
+  <li>in a consultation request: your name, phone or email, and your learning goal;</li>
+  <li>your payment history and the number of lessons held;</li>
+  <li>the source you came to the website from (for example, an ad campaign).</li>
+</ul>
+<p>We do not receive or store bank card details — payments are processed by the payment service.</p>
+<p>Passwords are stored only as a cryptographic hash, so not even the administrator can see them.</p>
+
+<h2>3. Why we use it</h2>
+<ul>
+  <li>to create and maintain your personal account;</li>
+  <li>so that your teacher can contact you and agree on a lesson schedule;</li>
+  <li>to keep track of payments and lessons held;</li>
+  <li>to respond to consultation requests.</li>
+</ul>
+<p>We do not sell your data or share it with third parties for advertising.</p>
+
+<h2>4. Who the data may be shared with</h2>
+<p>Only to the extent needed to provide the services: the teacher who gives your lessons; the payment service that processes payments; the hosting provider whose servers run the website; Telegram, through which the administrator receives notifications about requests; and public authorities where required by law.</p>
+
+<h2>5. Cookies</h2>
+<p>The website uses essential cookies: to keep you logged in to your account, to remember your language and the source you came from (for example, an ad).</p>
+${analyticsTextEn()}
+
+<h2>6. How long data is kept</h2>
+<p>For as long as your account exists and for the period required by accounting law. When the account is deleted, the data is destroyed.</p>
+
+<h2>7. Your rights</h2>
+<p>Under Article 8 of the Law of Ukraine "On Personal Data Protection", you can find out what data we hold about you, ask us to correct or delete it, and withdraw your consent to processing. To do so, write to ${fill(config.email, 'school email')}.</p>
+
+<h2>8. Contacts</h2>
+${details('en')}`;
+}
+
+const offer = (lang = 'uk') => (lang === 'en' ? offerEn() : offerUk());
+const privacy = (lang = 'uk') => (lang === 'en' ? privacyEn() : privacyUk());
 
 module.exports = { offer, privacy };

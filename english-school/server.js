@@ -213,11 +213,11 @@ app.post('/request', (req, res) => {
 app.get('/thanks', (req, res) => res.send(views.thanks(ctx(req))));
 
 app.get('/offer', (req, res) => {
-  res.send(views.legalPage(ctx(req), { html: legal.offer(), title: t(req.lang, 'footer.offer') }));
+  res.send(views.legalPage(ctx(req), { html: legal.offer(req.lang), title: t(req.lang, 'footer.offer') }));
 });
 
 app.get('/privacy', (req, res) => {
-  res.send(views.legalPage(ctx(req), { html: legal.privacy(), title: t(req.lang, 'footer.privacy') }));
+  res.send(views.legalPage(ctx(req), { html: legal.privacy(req.lang), title: t(req.lang, 'footer.privacy') }));
 });
 
 // ---------- Реєстрація та вхід ----------
