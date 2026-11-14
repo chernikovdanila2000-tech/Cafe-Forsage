@@ -22,6 +22,7 @@ const MESSAGE_TYPES = {
   password_changed: 'success', paid: 'success', payment_pending: 'success', too_many: 'error',
   'admin.saved': 'success', 'admin.deleted': 'info', 'admin.held': 'success', 'admin.undone': 'info',
   'admin.confirmed': 'success', 'admin.cancelled': 'info', 'admin.settings.tgTestSent': 'success',
+  'admin.teacherAssigned': 'success', 'admin.roleSaved': 'success', 'teacher.held': 'success',
 };
 
 const levelLabel = (code, lang) => t(lang, `level.${LEVEL_CODES.includes(code) ? code : 'unknown'}`);
@@ -58,8 +59,14 @@ const icon = {
   phone: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 3.5h3l1.5 4-2 1.5a11 11 0 0 0 6 6l1.5-2 4 1.5v3a2 2 0 0 1-2 2A16 16 0 0 1 4.5 5.5a2 2 0 0 1 2-2z"/></svg>',
   mail: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4 7l8 6 8-6"/></svg>',
   telegram: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M21 4.5L3 11.5l6 2 2 6 3.5-4 4.5 3.5z"/><path d="M9 13.5l8-6"/></svg>',
+  chat: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5h16v11H9.5L5 20v-3.5H4z"/><path d="M8 10h8M8 13h5"/></svg>',
+  clip: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5l-7.8 7.8a5 5 0 0 1-7-7L13 4.5a3.3 3.3 0 0 1 4.7 4.7l-7.8 7.8a1.7 1.7 0 0 1-2.4-2.4l7.1-7.1"/></svg>',
+  send: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13M12 5l7 7-7 7"/></svg>',
+  file: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3.5H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-10z"/><path d="M14 3.5v5h5"/></svg>',
   instagram: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r=".8" fill="currentColor"/></svg>',
 };
+
+const badge = (n) => (n > 0 ? ` <span class="badge">${n > 99 ? '99+' : n}</span>` : '');
 
 // Контакти школи, які заповнено в налаштуваннях.
 function contacts() {
@@ -118,7 +125,7 @@ function layout(ctx, { title, body, bodyClass = '', events = [], noindex = false
   const T = (key, vars) => t(lang, key, vars);
   const name = config.schoolName;
   const flashType = MESSAGE_TYPES[msg];
-  const flashText = flashType && (msg.startsWith('admin.') ? T(msg) : T(`msg.${msg}`));
+  const flashText = flashType && (/^(admin|teacher)\./.test(msg) ? T(msg) : T(`msg.${msg}`));
   const pageTitle = title ? `${title} — ${name}` : `${name} — ${T('meta.title')}`;
   const description = T('meta.description', { price: money(config.lessonPrice, lang) });
   const base = config.siteUrl || origin;
@@ -148,7 +155,7 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=5">
+<link rel="stylesheet" href="/styles.css?v=6">
 ${analytics(events)}
 </head>
 <body class="${h(bodyClass)}">
@@ -171,7 +178,8 @@ ${analytics(events)}
       <a href="${anchor('faq')}">${T('nav.faq')}</a>
       ${user
         ? `${user.is_admin ? `<a href="/admin">${T('nav.admin')}</a>` : ''}
-           <a class="btn btn-small btn-dark" href="/dashboard">${icon.user} ${T('nav.cabinet')}</a>`
+           ${!user.is_teacher && !user.is_admin && user.teacher_id ? `<a href="/chat">${T('nav.chat')}${badge(ctx.chatUnread)}</a>` : ''}
+           <a class="btn btn-small btn-dark" href="${user.is_teacher ? '/teacher' : '/dashboard'}">${icon.user} ${T(user.is_teacher ? 'nav.teacher' : 'nav.cabinet')}${user.is_teacher && ctx.chatUnread ? ` <span class="badge badge-light">${ctx.chatUnread}</span>` : ''}</a>`
         : `<a href="/login">${T('nav.login')}</a>
            <a class="btn btn-small btn-dark" href="${anchor('trial')}">${T('nav.consult')}</a>`}
     </nav>
@@ -200,7 +208,7 @@ ${body}
   </div>
   <div class="container footer-bottom">© ${new Date().getFullYear()} ${h(name)}. ${T('footer.rights')}</div>
 </footer>
-<script src="/app.js?v=5" defer></script>
+<script src="/app.js?v=6" defer></script>
 </body>
 </html>`;
 }
@@ -494,7 +502,7 @@ function forgot(ctx) {
 
 // ---------- Особистий кабінет ----------
 
-function dashboard(ctx, { balance, orders }) {
+function dashboard(ctx, { balance, orders, teacher }) {
   const { lang, user, msg } = ctx;
   const T = (key, vars) => t(lang, key, vars);
   const { single, monthly } = config.products;
@@ -518,6 +526,15 @@ function dashboard(ctx, { balance, orders }) {
         <p class="muted">${T('dash.level')}: ${h(levelLabel(user.level, lang))} · <a href="/account">${T('dash.settings')}</a></p>
       </div>
       <form method="post" action="/logout"><button class="btn btn-ghost btn-small" type="submit">${T('dash.logout')}</button></form>
+    </div>
+
+    <div class="panel chat-card${teacher ? '' : ' chat-card-off'}">
+      <span class="chat-card-icon">${icon.chat}</span>
+      <div>
+        <b>${T('chat.title')}</b>
+        <span class="muted small">${teacher ? h(T('chat.withTeacher', { name: teacher.name })) : T('chat.noTeacher')}</span>
+      </div>
+      ${teacher ? `<a class="btn btn-small btn-dark" href="/chat">${T('chat.open')}${ctx.chatUnread ? ` <span class="badge badge-light">${ctx.chatUnread}</span>` : ''}</a>` : ''}
     </div>
 
     <div class="dash-grid">
@@ -690,7 +707,7 @@ function notFound(ctx) {
 
 // ---------- Адмін-панель ----------
 
-const ADMIN_SECTIONS = ['overview', 'requests', 'students', 'orders', 'teachers', 'reviews', 'settings'];
+const ADMIN_SECTIONS = ['overview', 'requests', 'students', 'chats', 'orders', 'teachers', 'reviews', 'settings'];
 
 function adminLayout(ctx, active, { title, content, counts = {}, notice, error }) {
   const T = (key, vars) => t(ctx.lang, key, vars);
@@ -820,23 +837,34 @@ function adminOrders(ctx, { orders, counts }) {
   return adminLayout(ctx, 'orders', { title: T('admin.orders.title'), content, counts });
 }
 
-function adminStudents(ctx, { users, counts, notice }) {
+function adminStudents(ctx, { users, teachers, counts, notice }) {
   const { lang } = ctx;
   const T = (key) => t(lang, key);
   const content = `
     <p class="admin-hint">${T('admin.students.hint')}</p>
+    <p class="admin-hint">${T('admin.students.teachersHint')}</p>
     ${users.length ? `
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th>${T('admin.col.name')}</th><th>${T('admin.col.phone')}</th><th>${T('admin.col.level')}</th><th>${T('admin.col.left')}</th><th>${T('admin.col.held')}</th><th>${T('admin.col.paid')}</th><th>${T('admin.col.source')}</th><th>${T('admin.col.date')}</th><th></th></tr></thead>
+        <thead><tr><th>${T('admin.col.name')}</th><th>${T('admin.col.phone')}</th><th>${T('admin.col.level')}</th><th>${T('admin.col.teacher')}</th><th>${T('admin.col.left')}</th><th>${T('admin.col.held')}</th><th>${T('admin.col.paid')}</th><th>${T('admin.col.source')}</th><th>${T('admin.col.date')}</th><th></th></tr></thead>
         <tbody>
           ${users.map((u) => {
             const left = Math.max(u.lessons_bought - u.lessons_held, 0);
             return `
           <tr>
-            <td><b>${h(u.name)}</b>${u.is_admin ? ` <span class="pill pill-paid">${T('admin.adminTag')}</span>` : ''}<br><span class="muted small">${h(u.email)}</span></td>
+            <td><b>${h(u.name)}</b>${u.is_admin ? ` <span class="pill pill-paid">${T('admin.adminTag')}</span>` : ''}${u.is_teacher ? ` <span class="pill pill-teacher">${T('admin.teacherTag')}</span>` : ''}<br><span class="muted small">${h(u.email)}</span></td>
             <td class="nowrap">${tel(u.phone)}</td>
             <td>${h(LEVEL_CODES.includes(u.level) && u.level !== 'unknown' ? u.level : '—')}</td>
+            <td>${u.is_admin || u.is_teacher ? '—' : `
+              <form method="post" action="/admin/users/${u.id}/teacher" class="assign-form">
+                <select name="teacher_id" aria-label="${h(T('admin.col.teacher'))}">
+                  <option value="">${h(T('admin.noTeacher'))}</option>
+                  ${teachers.map((tch) => `<option value="${tch.id}"${tch.id === u.teacher_id ? ' selected' : ''}>${h(tch.name)}</option>`).join('')}
+                </select>
+                <button class="btn btn-small btn-ghost">${T('admin.assign')}</button>
+              </form>
+              ${u.teacher_id ? `<a class="small" href="/chat/${u.id}">${T('nav.chat')} →</a>` : ''}`}
+            </td>
             <td><b class="big-num">${left}</b></td>
             <td>${u.lessons_held}</td>
             <td class="nowrap">${money(u.paid_total, lang)}</td>
@@ -845,6 +873,7 @@ function adminStudents(ctx, { users, counts, notice }) {
             <td class="actions">
               ${left > 0 ? `<form method="post" action="/admin/users/${u.id}/held"><button class="btn btn-small btn-dark">${T('admin.markHeld')}</button></form>` : ''}
               ${u.lessons_held > 0 ? `<form method="post" action="/admin/users/${u.id}/undo"><button class="btn btn-small btn-ghost" title="${h(T('admin.undo'))}" aria-label="${h(T('admin.undo'))}">↶</button></form>` : ''}
+              ${u.is_admin ? '' : `<form method="post" action="/admin/users/${u.id}/role"><input type="hidden" name="teacher" value="${u.is_teacher ? '0' : '1'}"><button class="btn btn-small btn-ghost">${T(u.is_teacher ? 'admin.unmakeTeacher' : 'admin.makeTeacher')}</button></form>`}
               ${u.is_admin ? '' : `<form method="post" action="/admin/users/${u.id}/reset" data-confirm="${h(T('admin.confirmReset'))}"><button class="btn btn-small btn-ghost">${T('admin.resetPassword')}</button></form>`}
             </td>
           </tr>`;
@@ -1004,8 +1033,130 @@ function adminSettings(ctx, { values, counts, notice, error }) {
   return adminLayout(ctx, 'settings', { title: T('admin.settings.title'), content, counts, notice, error });
 }
 
+// ---------- Чат ----------
+
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const fileSize = (bytes) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} МБ` : `${Math.max(1, Math.round(bytes / 1024))} КБ`);
+
+// Текст повідомлення: екрануємо HTML, посилання робимо клікабельними, зберігаємо переноси рядків.
+const linkify = (text) => h(text).replace(/https?:\/\/[^\s<]+[^\s<.,:;!?)\]'"]/g, (url) => `<a href="${url}" target="_blank" rel="noopener nofollow">${url}</a>`);
+
+function messageHtml(m, viewer, lang) {
+  const mine = m.sender_id === viewer.id;
+  const tag = m.sender_is_admin ? t(lang, 'chat.adminTag') : m.sender_is_teacher ? t(lang, 'chat.teacherTag') : '';
+  const url = `/files/${m.id}`;
+  let attachment = '';
+  if (m.file_path) {
+    if (IMAGE_TYPES.includes(m.file_type)) {
+      attachment = `<a class="msg-image" href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="${h(m.file_name)}" loading="lazy"></a>`;
+    } else if (/^audio\//.test(m.file_type)) {
+      attachment = `<audio controls preload="none" src="${url}"></audio><a class="msg-file-name" href="${url}?download=1">${h(m.file_name)}</a>`;
+    } else if (/^video\//.test(m.file_type)) {
+      attachment = `<video controls preload="metadata" src="${url}"></video>`;
+    } else {
+      attachment = `<a class="msg-file" href="${url}?download=1">${icon.file}<span><b>${h(m.file_name)}</b><small>${fileSize(m.file_size)} · ${t(lang, 'chat.download')}</small></span></a>`;
+    }
+  }
+  return `
+    <div class="msg${mine ? ' msg-mine' : ''}" data-id="${m.id}">
+      <div class="msg-meta">${mine ? t(lang, 'chat.you') : h(m.sender_name)}${!mine && tag ? ` · ${tag}` : ''} · ${dateTime(m.created_at, lang)}</div>
+      <div class="msg-bubble">${attachment}${m.body ? `<p>${linkify(m.body)}</p>` : ''}</div>
+    </div>`;
+}
+
+function chatPage(ctx, { student, teacher, messages, error, extensions = [] }) {
+  const { lang, user } = ctx;
+  const T = (key, vars) => t(lang, key, vars);
+  const isStudent = user.id === student.id;
+  const back = isStudent ? ['/dashboard', 'chat.backStudent'] : user.is_teacher ? ['/teacher', 'chat.back'] : ['/admin/chats', 'chat.backAdmin'];
+  const title = isStudent ? T('chat.title') : T('chat.titleWith', { name: student.name });
+  const subtitle = isStudent
+    ? (teacher ? T('chat.withTeacher', { name: teacher.name }) : '')
+    : [student.phone, student.email, teacher && !user.is_teacher ? `${T('admin.col.teacher')}: ${teacher.name}` : ''].filter(Boolean).join(' · ');
+  const body = `
+<section class="chat-page">
+  <div class="container container-chat">
+    <div class="chat-head">
+      <a class="back-link" href="${back[0]}">${icon.back} ${T(back[1])}</a>
+      <h1>${h(title)}</h1>
+      ${subtitle ? `<p class="muted small">${h(subtitle)}</p>` : ''}
+    </div>
+    <div class="chat" data-chat="${student.id}" data-last="${messages.length ? messages[messages.length - 1].id : 0}">
+      <div class="chat-messages" aria-live="polite">
+        ${messages.length ? messages.map((m) => messageHtml(m, user, lang)).join('') : `<p class="chat-empty">${T(isStudent ? 'chat.empty' : 'chat.emptyTeacher')}</p>`}
+      </div>
+      ${error ? `<div class="flash flash-error" role="alert">${h(error)}</div>` : ''}
+      <form class="chat-form" method="post" action="/chat/${student.id}" enctype="multipart/form-data">
+        <label class="chat-attach" title="${h(T('chat.attach'))}">
+          ${icon.clip}<span class="sr-only">${T('chat.attach')}</span>
+          <input type="file" name="files" multiple accept="${h(extensions.join(','))}">
+        </label>
+        <div class="chat-input">
+          <div class="chat-files" hidden></div>
+          <textarea name="body" rows="1" maxlength="4000" placeholder="${h(T('chat.placeholder'))}"></textarea>
+        </div>
+        <button class="chat-send" type="submit" title="${h(T('chat.send'))}" aria-label="${h(T('chat.send'))}">${icon.send}</button>
+      </form>
+      <p class="chat-hint">${T('chat.filesHint')} <span class="desktop-only">${T('chat.enterHint')}.</span></p>
+      <p class="chat-error" role="alert" hidden data-failed="${h(T('chat.failed'))}" data-sending="${h(T('chat.sending'))}" data-empty="${h(T('chat.emptyMessage'))}" data-bad-type="${h(T('chat.badType', { name: '{name}' }))}" data-too-big="${h(T('chat.tooBig', { name: '{name}' }))}" data-extensions="${h(extensions.join(','))}"></p>
+    </div>
+  </div>
+</section>`;
+  return layout(ctx, { title, body, bodyClass: 'page-app page-chat', noindex: true });
+}
+
+function studentsList(students, lang, { showHeld, showTeacher }) {
+  const T = (key, vars) => t(lang, key, vars);
+  return `
+    <div class="student-list">
+      ${students.map((s) => `
+        <div class="panel student-row${s.unread ? ' has-unread' : ''}">
+          <div class="student-main">
+            <b>${h(s.name)}</b>
+            <span class="muted small">${[s.phone, s.email].filter(Boolean).map(h).join(' · ')}</span>
+            ${showTeacher && s.teacher_name ? `<span class="muted small">${T('admin.col.teacher')}: ${h(s.teacher_name)}</span>` : ''}
+          </div>
+          <div class="student-stat"><span class="muted small">${T('teacher.lessonsLeft')}</span><b>${Math.max(s.lessons_left, 0)}</b></div>
+          <div class="student-stat"><span class="muted small">${T('teacher.lastMessage')}</span><span class="small">${s.last_message_at ? dateTime(s.last_message_at, lang) : T('teacher.noMessages')}</span></div>
+          <div class="student-actions">
+            <a class="btn btn-small btn-dark" href="/chat/${s.id}">${icon.chat} ${T('chat.open')}${s.unread ? ` <span class="badge badge-light">${s.unread}</span>` : ''}</a>
+            ${showHeld && s.lessons_left > 0 ? `<form method="post" action="/teacher/students/${s.id}/held"><button class="btn btn-small btn-ghost">${T('teacher.markHeld')}</button></form>` : ''}
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function teacherHome(ctx, { students }) {
+  const { lang } = ctx;
+  const T = (key) => t(lang, key);
+  const body = `
+<section class="dash">
+  <div class="container">
+    <div class="dash-head">
+      <div>
+        <p class="eyebrow">${T('teacher.eyebrow')}</p>
+        <h1>${T('teacher.title')}</h1>
+      </div>
+      <form method="post" action="/logout"><button class="btn btn-ghost btn-small" type="submit">${T('dash.logout')}</button></form>
+    </div>
+    <p class="admin-hint">${T('teacher.hint')}</p>
+    ${students.length ? studentsList(students, lang, { showHeld: true, showTeacher: false }) : `<div class="panel"><p class="muted">${T('teacher.none')}</p></div>`}
+  </div>
+</section>`;
+  return layout(ctx, { title: T('teacher.title'), body, bodyClass: 'page-app', noindex: true });
+}
+
+function adminChats(ctx, { students, counts }) {
+  const T = (key) => t(ctx.lang, key);
+  const content = `
+    <p class="admin-hint">${T('admin.chats.hint')}</p>
+    ${students.length ? studentsList(students, ctx.lang, { showHeld: false, showTeacher: true }) : `<p class="muted">${T('admin.none')}</p>`}`;
+  return adminLayout(ctx, 'chats', { title: T('admin.chats.title'), content, counts });
+}
+
 module.exports = {
   home, thanks, authPage, forgot, dashboard, checkout, account, legalPage, notFound,
   adminOverview, adminRequests, adminOrders, adminStudents, adminTeachers, adminReviews, adminSettings,
+  chatPage, messageHtml, teacherHome, adminChats,
   LEVEL_CODES, productName,
 };

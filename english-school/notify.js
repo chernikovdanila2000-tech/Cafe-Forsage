@@ -68,6 +68,12 @@ const events = {
     `${esc(u.name)} · ${esc(u.phone)} · ${esc(u.email)}`,
     site() && `Підтвердити оплату: ${site()}/admin/orders`,
   ]),
+  chat: (student, teacher, text) => send([
+    '💬 <b>Нове повідомлення в чаті</b>',
+    `Від учня: ${esc(student.name)}${teacher ? ` → викладачу ${esc(teacher.name)}` : ''}`,
+    text && `«${esc(text.length > 200 ? `${text.slice(0, 200)}…` : text)}»`,
+    site() && `${site()}/chat/${student.id}`,
+  ]),
   paid: (o, u, productName) => send([
     '💰 <b>Оплачено</b>',
     `№ ${o.id}: ${esc(productName)}, ${o.amount} ₴`,

@@ -17,6 +17,9 @@ fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 // Завантажені фото викладачів лежать поруч із базою — на тому ж постійному диску.
 const UPLOADS_DIR = path.join(path.dirname(DB_PATH), 'uploads');
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+// Файли з чатів — окремо від публічних фото: віддаються лише учаснику розмови.
+const CHAT_DIR = path.join(path.dirname(DB_PATH), 'chat-files');
+fs.mkdirSync(CHAT_DIR, { recursive: true });
 const db = new DatabaseSync(DB_PATH);
 
 db.exec(`
@@ -101,6 +104,31 @@ function addColumn(table, column, definition) {
 addColumn('users', 'source', 'TEXT');
 addColumn('requests', 'source', 'TEXT');
 addColumn('requests', 'status', "TEXT NOT NULL DEFAULT 'new'");
+addColumn('users', 'is_teacher', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('users', 'teacher_id', 'INTEGER');
+
+// Чат учня з викладачем: одна розмова на учня (student_id), пише учень, його викладач або адміністратор.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS messages (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    sender_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body       TEXT,
+    file_name  TEXT,
+    file_path  TEXT,
+    file_type  TEXT,
+    file_size  INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS messages_student ON messages (student_id, id);
+
+  CREATE TABLE IF NOT EXISTS chat_reads (
+    user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    student_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    last_read_id INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (user_id, student_id)
+  );
+`);
 
 // ---------- Пароли ----------
 
@@ -157,6 +185,33 @@ const users = {
         (SELECT COUNT(*) FROM attendance a WHERE a.user_id = u.id) AS lessons_held
       FROM users u ORDER BY u.created_at DESC
     `).all();
+  },
+  teachers() {
+    return db.prepare('SELECT id, name, email FROM users WHERE is_teacher = 1 ORDER BY name').all();
+  },
+  setTeacherRole(id, isTeacher) {
+    db.prepare('UPDATE users SET is_teacher = ? WHERE id = ?').run(isTeacher ? 1 : 0, id);
+    // Колишній викладач більше не веде учнів.
+    if (!isTeacher) db.prepare('UPDATE users SET teacher_id = NULL WHERE teacher_id = ?').run(id);
+  },
+  assignTeacher(studentId, teacherId) {
+    const teacher = teacherId ? db.prepare('SELECT id FROM users WHERE id = ? AND is_teacher = 1').get(teacherId) : null;
+    db.prepare('UPDATE users SET teacher_id = ? WHERE id = ?').run(teacher ? teacher.id : null, studentId);
+  },
+  // Учні викладача з залишком занять і кількістю непрочитаних повідомлень.
+  studentsOf(teacherId, viewerId) {
+    return db.prepare(`
+      SELECT u.id, u.name, u.email, u.phone, u.level,
+        (SELECT name FROM users t WHERE t.id = u.teacher_id) AS teacher_name,
+        (SELECT COALESCE(SUM(lessons), 0) FROM orders o WHERE o.user_id = u.id AND o.status = 'paid')
+          - (SELECT COUNT(*) FROM attendance a WHERE a.user_id = u.id) AS lessons_left,
+        (SELECT COUNT(*) FROM messages m WHERE m.student_id = u.id AND m.sender_id != :viewer
+          AND m.id > COALESCE((SELECT last_read_id FROM chat_reads r WHERE r.user_id = :viewer AND r.student_id = u.id), 0)) AS unread,
+        (SELECT MAX(created_at) FROM messages m WHERE m.student_id = u.id) AS last_message_at
+      FROM users u
+      WHERE u.teacher_id = :teacher OR (:teacher IS NULL AND u.teacher_id IS NOT NULL)
+      ORDER BY unread DESC, last_message_at DESC, u.name
+    `).all({ teacher: teacherId, viewer: viewerId });
   },
 };
 
@@ -302,6 +357,53 @@ const reviews = {
   },
 };
 
+// ---------- Чат ----------
+
+const chat = {
+  // Хто може читати й писати в розмову учня: сам учень, його викладач і адміністратор.
+  canAccess(user, studentId) {
+    if (!user) return false;
+    if (user.is_admin || user.id === studentId) return true;
+    if (!user.is_teacher) return false;
+    const student = users.byId(studentId);
+    return Boolean(student && student.teacher_id === user.id);
+  },
+  add({ studentId, senderId, body, file }) {
+    const result = db.prepare(`
+      INSERT INTO messages (student_id, sender_id, body, file_name, file_path, file_type, file_size)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(studentId, senderId, body || null, file?.name || null, file?.path || null, file?.type || null, file?.size || null);
+    return Number(result.lastInsertRowid);
+  },
+  list(studentId, afterId = 0) {
+    return db.prepare(`
+      SELECT m.*, u.name AS sender_name, u.is_teacher AS sender_is_teacher, u.is_admin AS sender_is_admin
+      FROM messages m JOIN users u ON u.id = m.sender_id
+      WHERE m.student_id = ? AND m.id > ? ORDER BY m.id LIMIT 500
+    `).all(studentId, afterId);
+  },
+  byId(id) {
+    return db.prepare('SELECT * FROM messages WHERE id = ?').get(id);
+  },
+  markRead(userId, studentId) {
+    const last = db.prepare('SELECT COALESCE(MAX(id), 0) AS id FROM messages WHERE student_id = ?').get(studentId).id;
+    db.prepare(`
+      INSERT INTO chat_reads (user_id, student_id, last_read_id) VALUES (?, ?, ?)
+      ON CONFLICT(user_id, student_id) DO UPDATE SET last_read_id = MAX(last_read_id, excluded.last_read_id)
+    `).run(userId, studentId, last);
+  },
+  // Непрочитані для значка в шапці: учню — у своїй розмові, викладачу — в розмовах його учнів.
+  unreadFor(user) {
+    if (!user) return 0;
+    const where = user.is_teacher ? 'm.student_id IN (SELECT id FROM users WHERE teacher_id = :uid)' : 'm.student_id = :uid';
+    return db.prepare(`
+      SELECT COUNT(*) AS n FROM messages m
+      WHERE ${where} AND m.sender_id != :uid
+        AND m.id > COALESCE((SELECT last_read_id FROM chat_reads r WHERE r.user_id = :uid AND r.student_id = m.student_id), 0)
+    `).get({ uid: user.id }).n;
+  },
+};
+
 // Перевірка, що база відповідає (для /health).
 const ping = () => db.prepare('SELECT 1 AS ok').get().ok === 1;
 
@@ -322,4 +424,4 @@ function ensureAdmin() {
   }
 }
 
-module.exports = { UPLOADS_DIR, storageWarning, onRailway, db, users, sessions, orders, lessons, requests, settings, teachers, reviews, ping, ensureAdmin };
+module.exports = { UPLOADS_DIR, CHAT_DIR, chat, storageWarning, onRailway, db, users, sessions, orders, lessons, requests, settings, teachers, reviews, ping, ensureAdmin };
