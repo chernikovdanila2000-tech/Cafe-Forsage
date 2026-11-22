@@ -143,7 +143,13 @@ test('адмін: вхід, огляд, чекліст, заявка з джер
   // Учень не має доступу до адмінки.
   const student = browser();
   await student.request('/login', { method: 'POST', form: { email: 'taras@test.ua', password: 'secret123' } });
-  assert.equal((await student.request('/admin')).status, 404);
+  const denied = await student.request('/admin');
+  assert.equal(denied.status, 403);
+  assert.match(plain(denied.text), /Це сторінка адміністратора/);
+  assert.equal((await student.request('/admin/requests')).status, 404);
+  const out = await student.request('/logout', { method: 'POST', form: { next: '/login?next=%2Fadmin' } });
+  assert.equal(out.location, '/login?next=%2Fadmin');
+  await student.request('/login', { method: 'POST', form: { email: 'taras@test.ua', password: 'secret123' } });
   assert.equal((await student.request('/admin/settings', { method: 'POST', form: { lessonPrice: '1' } })).status, 404);
 });
 

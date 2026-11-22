@@ -691,6 +691,21 @@ function legalPage(ctx, { html, title }) {
   return layout(ctx, { title, body, bodyClass: 'page-app' });
 }
 
+function adminOnly(ctx) {
+  const T = (key, vars) => t(ctx.lang, key, vars);
+  const body = `
+<section class="auth">
+  <div class="auth-card center">
+    <p class="eyebrow">${T('admin.eyebrow')}</p>
+    <h1>${T('adminOnly.title')}</h1>
+    <p class="muted">${h(T('adminOnly.text', { email: ctx.user.email }))}</p>
+    <form method="post" action="/logout"><input type="hidden" name="next" value="/login?next=%2Fadmin"><button class="btn btn-dark btn-block" type="submit">${T('adminOnly.relogin')}</button></form>
+    <p class="auth-switch"><a href="/">${T('notfound.home')}</a></p>
+  </div>
+</section>`;
+  return layout(ctx, { title: T('adminOnly.title'), body, bodyClass: 'page-auth', noindex: true });
+}
+
 function notFound(ctx) {
   const T = (key) => t(ctx.lang, key);
   const body = `
@@ -1155,7 +1170,7 @@ function adminChats(ctx, { students, counts }) {
 }
 
 module.exports = {
-  home, thanks, authPage, forgot, dashboard, checkout, account, legalPage, notFound,
+  home, thanks, authPage, forgot, dashboard, checkout, account, legalPage, notFound, adminOnly,
   adminOverview, adminRequests, adminOrders, adminStudents, adminTeachers, adminReviews, adminSettings,
   chatPage, messageHtml, teacherHome, adminChats,
   LEVEL_CODES, productName,

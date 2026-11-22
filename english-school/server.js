@@ -123,6 +123,8 @@ function requireUser(req, res, next) {
 
 function requireAdmin(req, res, next) {
   if (req.user?.is_admin) return next();
+  // Сторінки адмінки відкриваються лише адміністратору; іншим пояснюємо, як увійти.
+  if (req.method === 'GET' && req.path === '/') return res.status(403).send(views.adminOnly(ctx(req)));
   notFound(req, res);
 }
 
@@ -276,7 +278,7 @@ app.post('/logout', (req, res) => {
   const token = readCookie(req, COOKIE);
   if (token) db.sessions.destroy(token);
   res.clearCookie(COOKIE);
-  res.redirect('/?msg=loggedout');
+  res.redirect(req.body.next === '/login?next=%2Fadmin' ? req.body.next : '/?msg=loggedout');
 });
 
 app.get('/forgot', (req, res) => res.send(views.forgot(ctx(req))));
