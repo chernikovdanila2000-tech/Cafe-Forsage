@@ -409,8 +409,16 @@ const ping = () => db.prepare('SELECT 1 AS ok').get().ok === 1;
 
 // ---------- Администратор ----------
 
+const DEFAULT_ADMIN = 'admin@school.local';
+
 function ensureAdmin() {
-  const email = (process.env.ADMIN_EMAIL || 'admin@school.local').toLowerCase();
+  const email = (process.env.ADMIN_EMAIL || DEFAULT_ADMIN).toLowerCase();
+  // Коли задано свій ADMIN_EMAIL, тимчасовий адмін-акаунт, створений автоматично, більше не потрібен.
+  if (email !== DEFAULT_ADMIN) {
+    const temp = users.byEmail(DEFAULT_ADMIN);
+    const used = temp && db.prepare('SELECT 1 FROM orders WHERE user_id = ? UNION SELECT 1 FROM messages WHERE sender_id = ?').get(temp.id, temp.id);
+    if (temp && temp.is_admin && !used) db.prepare('DELETE FROM users WHERE id = ?').run(temp.id);
+  }
   const existing = users.byEmail(email);
   if (existing) {
     if (!existing.is_admin) db.prepare('UPDATE users SET is_admin = 1 WHERE id = ?').run(existing.id);
