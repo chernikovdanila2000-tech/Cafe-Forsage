@@ -7,8 +7,8 @@ const db = require('./db');
 // Поля, які можна змінити в адмін-панелі: ключ → [змінна оточення, значення за замовчуванням].
 const EDITABLE = {
   phone: ['SCHOOL_PHONE', ''],
-  email: ['SCHOOL_EMAIL', ''],
-  telegram: ['SCHOOL_TELEGRAM', ''],
+  email: ['SCHOOL_EMAIL', 'inkwellschool2@gmail.com'],
+  telegram: ['SCHOOL_TELEGRAM', '@Inkwell_sch'],
   instagram: ['SCHOOL_INSTAGRAM', ''],
   lessonPrice: ['LESSON_PRICE', '450'],
   packageLessons: ['SUBSCRIPTION_LESSONS', '8'],
