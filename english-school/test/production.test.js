@@ -82,3 +82,27 @@ test('у робочому режимі адмін бачить чекліст б
   assert.doesNotMatch(page, /не на постійному диску/);
   assert.match(page, /Готовність до запуску/);
 });
+
+test('Telegram: токен і підключення однією кнопкою, потім заявка приходить у Telegram', async () => {
+  const admin = browser();
+  await admin.request('/login', { method: 'POST', form: ADMIN });
+  const settings = (await admin.request('/admin/settings')).text;
+  assert.match(settings, /name="tgBotToken" value="" maxlength="600" placeholder="[^"]*" autocomplete="off"/);
+  assert.doesNotMatch(settings, /type="password" name="tgBotToken"/, 'браузер не підставить сюди пароль');
+  assert.match(settings, /formaction="\/admin\/telegram\/connect"/);
+
+  const bad = await admin.request('/admin/telegram/connect', { method: 'POST', form: { tgBotToken: 'не-токен' } });
+  assert.equal(bad.status, 400);
+
+  const ok = await admin.request('/admin/telegram/connect', {
+    method: 'POST', form: { lessonPrice: '450', packageLessons: '8', packageDiscount: '20', tgBotToken: ' 123456:ABCDEFGHIJKLMNOPQRSTUVWXYZ_abc ' },
+  });
+  assert.match(plain(ok.text), /Готово! Перевірте Telegram/);
+  assert.ok(site.telegram.messages.some((m) => m.includes('Сповіщення Inkwell Academy підключено')));
+  assert.match(plain((await admin.request('/admin/settings')).text), /Підключено/);
+
+  site.telegram.messages.length = 0;
+  await browser().request('/request', { method: 'POST', form: { name: 'Перевірка', contact: '+380671112233' } });
+  await new Promise((r) => setTimeout(r, 200));
+  assert.ok(site.telegram.messages.some((m) => m.includes('Нова заявка') && m.includes('+380671112233')));
+});

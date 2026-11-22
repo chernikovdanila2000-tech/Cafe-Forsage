@@ -750,9 +750,20 @@ admin.post('/settings', (req, res) => {
   res.redirect('/admin/settings?msg=admin.saved');
 });
 
+// «Зберегти й підключити»: кнопка в блоці Telegram надсилає всю форму налаштувань.
+// Зберігаємо токен з форми (якщо він новий і правильний), а потім шукаємо чат, де адміністратор натиснув Start.
 admin.post('/telegram/connect', async (req, res) => {
+  const posted = field(req.body.tgBotToken, 200);
+  if (posted && posted !== config.get('tgBotToken')) {
+    if (!SETTINGS_RULES.tgBotToken(posted)) {
+      return renderSettings(req, res, { error: t(req.lang, 'admin.settings.invalid', { field: t(req.lang, 'admin.settings.tgBotToken') }) });
+    }
+    db.settings.save({ tgBotToken: posted, tgChatId: '' });
+  }
   const { token } = config.telegramBot;
-  if (!token) return res.redirect('/admin/settings');
+  if (!token) {
+    return renderSettings(req, res, { error: t(req.lang, 'admin.settings.invalid', { field: t(req.lang, 'admin.settings.tgBotToken') }) });
+  }
   try {
     const result = await notify.connect(token);
     if (!result.ok) return renderSettings(req, res, { error: t(req.lang, 'admin.settings.tgNoChat', { bot: result.bot }) });

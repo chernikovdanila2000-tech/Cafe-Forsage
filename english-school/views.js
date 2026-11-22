@@ -970,7 +970,7 @@ function adminSettings(ctx, { values, counts, notice, error }) {
     <label>${T(`admin.settings.${key}`)}${hint ? ` <span class="optional">— ${h(T(hint))}</span>` : ''}
       ${textarea
         ? `<textarea name="${key}" rows="3" maxlength="600" placeholder="${h(placeholder || '')}">${h(values[key])}</textarea>`
-        : `<input type="${type}" name="${key}" value="${h(values[key])}" maxlength="600" placeholder="${h(placeholder || '')}"${type === 'number' ? ' min="0" step="1"' : ''}>`}
+        : `<input type="${type}" name="${key}" value="${h(values[key])}" maxlength="600" placeholder="${h(placeholder || '')}" autocomplete="off" spellcheck="false" data-1p-ignore data-lpignore="true"${type === 'number' ? ' min="0" step="1"' : ''}>`}
     </label>`;
   const content = `
     <p class="admin-hint">${T('admin.settings.hint')}</p>
@@ -1032,19 +1032,18 @@ function adminSettings(ctx, { values, counts, notice, error }) {
           ? `<p class="checklist-done">${icon.check} ${h(T('admin.settings.tgConnected', { chat: tg.chatId }))}</p>`
           : `<p class="muted small">${T('admin.settings.tgSteps')}</p>`}
         <div class="form">
-          ${field('tgBotToken', { type: 'password', placeholder: '123456789:AA…' })}
+          ${field('tgBotToken', { placeholder: '123456789:AA…' })}
+        </div>
+        <div class="tg-actions">
+          <button class="btn btn-dark" type="submit" formaction="/admin/telegram/connect">${T('admin.settings.tgConnect')}</button>
+          ${tg.token && tg.chatId ? `<button class="btn btn-ghost" type="submit" formaction="/admin/telegram/test">${T('admin.settings.tgTest')}</button>` : ''}
         </div>
       </div>
 
       <div class="settings-actions">
         <button class="btn btn-dark" type="submit">${T('admin.settings.save')}</button>
       </div>
-    </form>
-    ${tg.token ? `
-    <div class="tg-actions">
-      <form method="post" action="/admin/telegram/connect"><button class="btn btn-ghost">${T('admin.settings.tgConnect')}</button></form>
-      ${tg.chatId ? `<form method="post" action="/admin/telegram/test"><button class="btn btn-ghost">${T('admin.settings.tgTest')}</button></form>` : ''}
-    </div>` : ''}`;
+    </form>`;
   return adminLayout(ctx, 'settings', { title: T('admin.settings.title'), content, counts, notice, error });
 }
 
