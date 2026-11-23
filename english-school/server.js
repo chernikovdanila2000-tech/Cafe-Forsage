@@ -300,8 +300,25 @@ app.get('/dashboard', requireUser, (req, res) => {
   res.send(views.dashboard(ctx(req), {
     balance: db.lessons.balance(req.user.id),
     orders: db.orders.forUser(req.user.id),
-    teacher: req.user.teacher_id ? db.users.byId(req.user.teacher_id) : null,
+    teacher: req.user.teacher_id ? db.teachers.forChoice().find((x) => x.id === req.user.teacher_id) || db.users.byId(req.user.teacher_id) : null,
+    teachers: db.teachers.forChoice(),
   }));
+});
+
+// Учень сам обирає викладача — після цього в нього з'являється чат із ним.
+app.post('/choose-teacher', requireUser, (req, res) => {
+  if (req.user.is_teacher || req.user.is_admin) return res.redirect('/dashboard');
+  const teacherId = teacherAccount(req.body.teacher_id);
+  if (!teacherId) return res.redirect('/dashboard');
+  if (teacherId !== req.user.teacher_id) {
+    db.users.assignTeacher(req.user.id, teacherId);
+    const teacher = db.users.byId(teacherId);
+    notify.send([
+      '👩‍🏫 <b>Учень обрав викладача</b>',
+      `${req.user.name} · ${req.user.phone || req.user.email} → ${teacher.name}`,
+    ].map((line, i) => (i ? line.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]) : line)));
+  }
+  res.redirect('/dashboard?msg=teacher_chosen');
 });
 
 // ---------- Чат учня з викладачем ----------
@@ -653,7 +670,7 @@ function withPhoto(req, res, next) {
   upload(req, res, (err) => {
     if (err) {
       return res.status(400).send(views.adminTeachers(ctx(req), {
-        teachers: db.teachers.all(), counts: adminCounts(), error: `${t(req.lang, 'admin.teachers.photo')}: ${t(req.lang, 'admin.teachers.photoHint')}.`,
+        teachers: db.teachers.all(), accounts: db.users.teachers(), counts: adminCounts(), error: `${t(req.lang, 'admin.teachers.photo')}: ${t(req.lang, 'admin.teachers.photoHint')}.`,
       }));
     }
     next();
@@ -664,15 +681,22 @@ function removePhoto(photo) {
   if (photo && photo.startsWith('/uploads/')) fs.rm(path.join(db.UPLOADS_DIR, path.basename(photo)), { force: true }, () => {});
 }
 
+// Акаунт, з яким пов'язана картка, має бути викладачем.
+const teacherAccount = (value) => {
+  const user = db.users.byId(Number(value));
+  return user && user.is_teacher ? user.id : null;
+};
+
 const teacherInput = (req, current = {}) => ({
   name: field(req.body.name, 80),
   role: field(req.body.role, 120),
   about: field(req.body.about, 400),
   photo: req.file ? `/uploads/${req.file.filename}` : current.photo,
+  userId: teacherAccount(req.body.user_id),
 });
 
 admin.get('/teachers', (req, res) => {
-  res.send(views.adminTeachers(ctx(req), { teachers: db.teachers.all(), counts: adminCounts() }));
+  res.send(views.adminTeachers(ctx(req), { teachers: db.teachers.all(), accounts: db.users.teachers(), counts: adminCounts() }));
 });
 
 admin.post('/teachers', withPhoto, (req, res) => {

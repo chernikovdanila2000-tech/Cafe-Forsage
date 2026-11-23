@@ -106,6 +106,8 @@ addColumn('requests', 'source', 'TEXT');
 addColumn('requests', 'status', "TEXT NOT NULL DEFAULT 'new'");
 addColumn('users', 'is_teacher', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('users', 'teacher_id', 'INTEGER');
+// Картка викладача на сайті може бути пов'язана з його акаунтом — тоді учні бачать фото й опис, коли обирають викладача.
+addColumn('teachers', 'user_id', 'INTEGER');
 
 // Чат учня з викладачем: одна розмова на учня (student_id), пише учень, його викладач або адміністратор.
 db.exec(`
@@ -333,12 +335,24 @@ const teachers = {
   all() {
     return db.prepare('SELECT * FROM teachers ORDER BY position, id').all();
   },
-  create({ name, role, about, photo }) {
+  create({ name, role, about, photo, userId }) {
     const next = db.prepare('SELECT COALESCE(MAX(position), 0) + 1 AS n FROM teachers').get().n;
-    db.prepare('INSERT INTO teachers (name, role, about, photo, position) VALUES (?, ?, ?, ?, ?)').run(name, role || null, about || null, photo || null, next);
+    db.prepare('INSERT INTO teachers (name, role, about, photo, position, user_id) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(name, role || null, about || null, photo || null, next, userId || null);
   },
-  update(id, { name, role, about, photo }) {
-    db.prepare('UPDATE teachers SET name = ?, role = ?, about = ?, photo = ? WHERE id = ?').run(name, role || null, about || null, photo || null, id);
+  update(id, { name, role, about, photo, userId }) {
+    db.prepare('UPDATE teachers SET name = ?, role = ?, about = ?, photo = ?, user_id = ? WHERE id = ?')
+      .run(name, role || null, about || null, photo || null, userId || null, id);
+  },
+  // Викладачі, яких учень може обрати: акаунти з роллю «викладач» + фото й опис із картки на сайті.
+  forChoice() {
+    return db.prepare(`
+      SELECT u.id, COALESCE(t.name, u.name) AS name, t.photo, t.role, t.about
+      FROM users u
+      LEFT JOIN teachers t ON t.id = (SELECT id FROM teachers WHERE user_id = u.id ORDER BY position LIMIT 1)
+      WHERE u.is_teacher = 1
+      ORDER BY COALESCE(t.position, 1e9), u.name
+    `).all();
   },
   remove(id) {
     db.prepare('DELETE FROM teachers WHERE id = ?').run(id);

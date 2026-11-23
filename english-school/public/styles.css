@@ -543,6 +543,21 @@ mark.fill { background: var(--warn-soft); color: var(--warn); padding: 1px 6px; 
 .assign-form { display: flex; gap: 6px; align-items: center; }
 .assign-form select { padding: 7px 10px; font-size: .85rem; border-radius: 10px; min-width: 150px; }
 
+/* Вибір викладача в кабінеті */
+.choose-teacher { margin-bottom: 24px; }
+.choose-teacher > summary { cursor: pointer; font-family: var(--serif); font-size: 1.6rem; font-weight: 600; margin-bottom: 12px; list-style: none; }
+.choose-teacher > summary::-webkit-details-marker { display: none; }
+.choose-teacher:not([open]) > summary { font-family: var(--sans); font-size: .9rem; color: var(--accent-dark); text-decoration: underline; }
+.choose-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin-top: 16px; }
+.choose-card { margin: 0; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.choose-card .avatar { margin-bottom: 8px; }
+.choose-card h3 { font-size: 1.35rem; margin: 0; }
+.choose-card .teacher-role { margin: 0; }
+.choose-card .muted { margin: 0 0 8px; }
+.choose-card .btn, .choose-card .pill { margin-top: auto; }
+.choose-card.is-current { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.chat-card-photo { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex: none; }
+
 /* ---------- Адаптив ---------- */
 @media (max-width: 980px) {
   .hero-inner, .cta-inner { grid-template-columns: 1fr; gap: 48px; }

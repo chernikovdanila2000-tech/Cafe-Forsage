@@ -181,3 +181,49 @@ test('зняття ролі викладача прибирає призначе
   assert.equal((await teacher.request('/teacher')).status, 404);
   assert.equal((await student.request('/chat')).location, '/dashboard');
 });
+
+test('учень сам обирає викладача й може його змінити', async () => {
+  const t2 = browser();
+  await register(t2, 'Ірина Нова', 'teacher2@test.ua');
+  const page = (await admin.request('/admin/students')).text;
+  const t2Id = Number(page.match(/teacher2@test\.ua[\s\S]*?\/admin\/users\/(\d+)\/role/)[1]);
+  await admin.request(`/admin/users/${teacherId}/role`, { method: 'POST', form: { teacher: '1' } });
+  await admin.request(`/admin/users/${t2Id}/role`, { method: 'POST', form: { teacher: '1' } });
+
+  // Картка на сайті пов'язана з акаунтом — учень бачить її опис.
+  const fd = new FormData();
+  fd.append('name', 'Ірина Нова');
+  fd.append('role', 'IELTS 8.0');
+  fd.append('about', 'Готує до іспитів.');
+  fd.append('user_id', String(t2Id));
+  await fetch(`${site.base}/admin/teachers`, { method: 'POST', body: fd, headers: { cookie: cookie(admin) }, redirect: 'manual' });
+
+  const fresh = browser();
+  await register(fresh, 'Софія Учениця', 'sofia@test.ua');
+  const dash = plain((await fresh.request('/dashboard')).text);
+  assert.match(dash, /Оберіть свого викладача/);
+  assert.match(dash, /Олена Викладачка/);
+  assert.match(dash, /Ірина Нова IELTS 8\.0 Готує до іспитів\./);
+  assert.equal((await fresh.request('/chat')).location, '/dashboard', 'до вибору чату немає');
+
+  // Не можна «обрати» звичайного учня.
+  await fresh.request('/choose-teacher', { method: 'POST', form: { teacher_id: String(studentId) } });
+  assert.equal((await fresh.request('/chat')).location, '/dashboard');
+
+  site.telegram.messages.length = 0;
+  const chose = await fresh.request('/choose-teacher', { method: 'POST', form: { teacher_id: String(t2Id) } });
+  assert.equal(chose.location, '/dashboard?msg=teacher_chosen');
+  const after = plain((await fresh.request('/dashboard?msg=teacher_chosen')).text);
+  assert.match(after, /Тепер у вас є чат із викладачем/);
+  assert.match(after, /Ваш викладач: Ірина Нова/);
+  assert.equal((await fresh.request('/chat')).status, 200);
+  await new Promise((r) => setTimeout(r, 200));
+  assert.ok(site.telegram.messages.some((m) => m.includes('Учень обрав викладача') && m.includes('Софія Учениця')));
+
+  // Новий викладач бачить учня у своєму кабінеті.
+  assert.match(plain((await t2.request('/teacher')).text), /Софія Учениця/);
+
+  await fresh.request('/choose-teacher', { method: 'POST', form: { teacher_id: String(teacherId) } });
+  assert.match(plain((await fresh.request('/dashboard')).text), /Ваш викладач: Олена Викладачка/);
+  assert.doesNotMatch(plain((await t2.request('/teacher')).text), /Софія Учениця/);
+});

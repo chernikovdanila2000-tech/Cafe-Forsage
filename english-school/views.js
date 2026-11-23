@@ -22,7 +22,7 @@ const LEVEL_CODES = ['unknown', 'A1', 'A2', 'B1', 'B2', 'C1'];
 
 const MESSAGE_TYPES = {
   registered: 'success', loggedout: 'info', login_required: 'info', profile_saved: 'success',
-  password_changed: 'success', paid: 'success', payment_pending: 'success', too_many: 'error',
+  password_changed: 'success', paid: 'success', payment_pending: 'success', too_many: 'error', teacher_chosen: 'success',
   'admin.saved': 'success', 'admin.deleted': 'info', 'admin.held': 'success', 'admin.undone': 'info',
   'admin.confirmed': 'success', 'admin.cancelled': 'info', 'admin.settings.tgTestSent': 'success',
   'admin.teacherAssigned': 'success', 'admin.roleSaved': 'success', 'teacher.held': 'success',
@@ -505,7 +505,7 @@ function forgot(ctx) {
 
 // ---------- Особистий кабінет ----------
 
-function dashboard(ctx, { balance, orders, teacher }) {
+function dashboard(ctx, { balance, orders, teacher, teachers = [] }) {
   const { lang, user, msg } = ctx;
   const T = (key, vars) => t(lang, key, vars);
   const { single, monthly } = config.products;
@@ -531,14 +531,38 @@ function dashboard(ctx, { balance, orders, teacher }) {
       <form method="post" action="/logout"><button class="btn btn-ghost btn-small" type="submit">${T('dash.logout')}</button></form>
     </div>
 
-    <div class="panel chat-card${teacher ? '' : ' chat-card-off'}">
-      <span class="chat-card-icon">${icon.chat}</span>
+    ${teacher ? `
+    <div class="panel chat-card">
+      ${teacher.photo ? `<img class="chat-card-photo" src="${h(teacher.photo)}" alt="">` : `<span class="chat-card-icon">${icon.chat}</span>`}
       <div>
         <b>${T('chat.title')}</b>
-        <span class="muted small">${teacher ? h(T('chat.withTeacher', { name: teacher.name })) : T('chat.noTeacher')}</span>
+        <span class="muted small">${h(T('chat.withTeacher', { name: teacher.name }))}</span>
       </div>
-      ${teacher ? `<a class="btn btn-small btn-dark" href="/chat">${T('chat.open')}${ctx.chatUnread ? ` <span class="badge badge-light">${ctx.chatUnread}</span>` : ''}</a>` : ''}
-    </div>
+      <a class="btn btn-small btn-dark" href="/chat">${T('chat.open')}${ctx.chatUnread ? ` <span class="badge badge-light">${ctx.chatUnread}</span>` : ''}</a>
+    </div>` : ''}
+
+    ${teachers.length ? `
+    <details class="choose-teacher"${teacher ? '' : ' open'}>
+      <summary>${T(teacher ? 'choose.change' : 'choose.title')}</summary>
+      ${teacher ? '' : `<p class="muted">${T('choose.lead')}</p>`}
+      <div class="choose-grid">
+        ${teachers.map((tch) => `
+          <form method="post" action="/choose-teacher" class="panel choose-card${teacher && teacher.id === tch.id ? ' is-current' : ''}">
+            <input type="hidden" name="teacher_id" value="${tch.id}">
+            ${tch.photo ? `<img class="avatar avatar-photo" src="${h(tch.photo)}" alt="${h(tch.name)}" loading="lazy">` : `<div class="avatar">${h(tch.name[0])}</div>`}
+            <h3>${h(tch.name)}</h3>
+            ${tch.role ? `<p class="teacher-role">${h(tch.role)}</p>` : ''}
+            ${tch.about ? `<p class="muted small">${h(tch.about)}</p>` : ''}
+            ${teacher && teacher.id === tch.id
+              ? `<span class="pill pill-paid">${T('choose.current')}</span>`
+              : `<button class="btn btn-small btn-dark" type="submit">${T('choose.button')}</button>`}
+          </form>`).join('')}
+      </div>
+    </details>` : (teacher ? '' : `
+    <div class="panel chat-card chat-card-off">
+      <span class="chat-card-icon">${icon.chat}</span>
+      <div><b>${T('chat.title')}</b><span class="muted small">${T('chat.noTeacher')}</span></div>
+    </div>`)}
 
     <div class="dash-grid">
       <div class="panel balance-panel">
@@ -902,16 +926,22 @@ function adminStudents(ctx, { users, teachers, counts, notice }) {
   return adminLayout(ctx, 'students', { title: T('admin.students.title'), content, counts, notice });
 }
 
-function teacherFields(lang, teacher = {}) {
+function teacherFields(lang, teacher = {}, accounts = []) {
   const T = (key) => t(lang, key);
   return `
+    <label>${T('admin.teachers.account')} <span class="optional">— ${T('admin.teachers.accountHint')}</span>
+      <select name="user_id">
+        <option value="">${h(T('admin.teachers.noAccount'))}</option>
+        ${accounts.map((a) => `<option value="${a.id}"${a.id === teacher.user_id ? ' selected' : ''}>${h(a.name)} · ${h(a.email)}</option>`).join('')}
+      </select>
+    </label>
     <label>${T('admin.teachers.name')}<input name="name" required maxlength="80" value="${h(teacher.name)}"></label>
     <label>${T('admin.teachers.role')} <span class="optional">${T('form.optional')}</span><input name="role" maxlength="120" value="${h(teacher.role)}" placeholder="${h(T('admin.teachers.roleHint'))}"></label>
     <label>${T('admin.teachers.about')} <span class="optional">${T('form.optional')}</span><textarea name="about" rows="2" maxlength="400" placeholder="${h(T('admin.teachers.aboutHint'))}">${h(teacher.about)}</textarea></label>
     <label>${T('admin.teachers.photo')} <span class="optional">— ${T('admin.teachers.photoHint')}</span><input type="file" name="photo" accept="image/jpeg,image/png,image/webp"></label>`;
 }
 
-function adminTeachers(ctx, { teachers, counts, error }) {
+function adminTeachers(ctx, { teachers, accounts = [], counts, error }) {
   const { lang } = ctx;
   const T = (key) => t(lang, key);
   const content = `
@@ -924,7 +954,7 @@ function adminTeachers(ctx, { teachers, counts, error }) {
             <b>${h(teacher.name)}</b>
           </div>
           <form method="post" action="/admin/teachers/${teacher.id}" enctype="multipart/form-data" class="form">
-            ${teacherFields(lang, teacher)}
+            ${teacherFields(lang, teacher, accounts)}
             <div class="form-actions"><button class="btn btn-small btn-dark">${T('admin.teachers.save')}</button></div>
           </form>
           ${del(`/admin/teachers/${teacher.id}/delete`, lang)}
@@ -932,7 +962,7 @@ function adminTeachers(ctx, { teachers, counts, error }) {
       <div class="panel admin-card admin-card-new">
         <h2 class="panel-title">${T('admin.teachers.add')}</h2>
         <form method="post" action="/admin/teachers" enctype="multipart/form-data" class="form">
-          ${teacherFields(lang)}
+          ${teacherFields(lang, {}, accounts)}
           <button class="btn btn-dark">${T('admin.teachers.add')}</button>
         </form>
       </div>
