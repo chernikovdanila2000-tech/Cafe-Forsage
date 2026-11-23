@@ -28,6 +28,16 @@ const { t, LANGS, DEFAULT_LANG } = require('./i18n');
 db.ensureAdmin();
 db.sessions.cleanup();
 
+// Одноразове оновлення збережених цін: заняття 400 ₴ (було 450 ₴), абонемент — 350 ₴ за заняття.
+{
+  const saved = db.settings.all();
+  if (!saved['migration.prices-2026-11']) {
+    const update = { 'migration.prices-2026-11': '1' };
+    if (saved.lessonPrice === '450') update.lessonPrice = '400';
+    db.settings.save(update);
+  }
+}
+
 const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
@@ -726,7 +736,7 @@ const SETTINGS_RULES = {
   email: (v) => !v || isEmail(v),
   lessonPrice: (v) => /^\d{1,6}$/.test(v) && Number(v) > 0,
   packageLessons: (v) => /^\d{1,2}$/.test(v) && Number(v) >= 2 && Number(v) <= 50,
-  packageDiscount: (v) => /^\d{1,2}$/.test(v) && Number(v) <= 90,
+  packageLessonPrice: (v) => /^\d{1,6}$/.test(v) && Number(v) > 0,
   paymentUrl: (v) => !v || /^https:\/\/\S+$/i.test(v),
   siteUrl: (v) => !v || /^https?:\/\/[^\s/]+\.[^\s/]+$/i.test(v),
   metaPixelId: (v) => !v || /^\d{6,20}$/.test(v),

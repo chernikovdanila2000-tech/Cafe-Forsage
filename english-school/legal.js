@@ -1,6 +1,7 @@
 // Публічна оферта й політика конфіденційності.
 // Юридичну силу має українська версія; англійська — переклад для зручності, з тими самими пунктами.
-// Це шаблон: перед запуском оплат заповніть реквізити в адмін-панелі й бажано покажіть текст юристу.
+// Поки ФОП не зареєстровано, виконавцем зазначено школу; реквізити ФОП з адмін-панелі підставляються автоматично.
+// Бажано показати текст юристу.
 // Змінюючи пункт в одній мові, змініть його й в іншій.
 
 const config = require('./config');
@@ -11,19 +12,33 @@ const fill = (value, hint) => (value ? h(value) : `<mark class="fill">[${h(hint)
 const uah = (amount) => `${Number(amount).toLocaleString('uk-UA', { maximumFractionDigits: 0 })} грн`;
 const UAH = (amount) => `UAH ${Number(amount).toLocaleString('en-GB', { maximumFractionDigits: 0 })}`;
 
+// Хто надає послуги: ФОП із налаштувань, а поки його немає — школа під своїм брендом.
+function provider(lang = 'uk') {
+  const { legal } = config;
+  if (legal.seller) return h(legal.seller);
+  return lang === 'en' ? `the online English school "${h(config.schoolName)}"` : `Онлайн-школа англійської мови «${h(config.schoolName)}»`;
+}
+
+const site = () => h(config.legal.site || 'https://inkwell.academy');
+
+// Реквізити: показуємо лише заповнені рядки (податковий номер і адреса з'являться, щойно буде ФОП).
 function details(lang = 'uk') {
-  const { legal, phone, email } = config;
+  const { legal, phone, email, telegram } = config;
   const L = lang === 'en'
-    ? ['Provider', 'Tax ID', 'Address', 'Phone', 'Email', 'Website', 'enter', 'full name of the sole proprietor or company', 'tax ID', 'registered address', 'phone', 'email', 'website address']
-    : ['Виконавець', 'РНОКПП / ЄДРПОУ', 'Адреса', 'Телефон', 'Email', 'Сайт', 'вкажіть', 'ПІБ ФОП або назву компанії', 'податковий номер', 'адресу реєстрації', 'телефон', 'email', 'адресу сайту'];
+    ? { provider: 'Provider', tax: 'Tax ID', address: 'Address', phone: 'Phone', telegram: 'Telegram', email: 'Email', site: 'Website' }
+    : { provider: 'Виконавець', tax: 'РНОКПП / ЄДРПОУ', address: 'Адреса', phone: 'Телефон', telegram: 'Telegram', email: 'Email', site: 'Сайт' };
+  const rows = [
+    [L.provider, legal.seller ? h(legal.seller) : h(config.schoolName)],
+    [L.tax, legal.taxId && h(legal.taxId)],
+    [L.address, legal.address && h(legal.address)],
+    [L.phone, phone && h(phone)],
+    [L.telegram, telegram && h(telegram)],
+    [L.email, email && h(email)],
+    [L.site, site()],
+  ];
   return `
     <ul class="legal-details">
-      <li><b>${L[0]}:</b> ${fill(legal.seller, `${L[6]} ${L[7]}`)}</li>
-      <li><b>${L[1]}:</b> ${fill(legal.taxId, `${L[6]} ${L[8]}`)}</li>
-      <li><b>${L[2]}:</b> ${fill(legal.address, `${L[6]} ${L[9]}`)}</li>
-      <li><b>${L[3]}:</b> ${fill(phone, `${L[6]} ${L[10]}`)}</li>
-      <li><b>${L[4]}:</b> ${fill(email, `${L[6]} ${L[11]}`)}</li>
-      <li><b>${L[5]}:</b> ${fill(legal.site, `${L[6]} ${L[12]}`)}</li>
+      ${rows.filter(([, v]) => v).map(([k, v]) => `<li><b>${k}:</b> ${v}</li>`).join('\n      ')}
     </ul>`;
 }
 
@@ -36,14 +51,14 @@ function offerUk() {
 <p class="legal-updated">Редакція від ${h(legal.updated)}</p>
 
 <h2>1. Загальні положення</h2>
-<p>1.1. Цей договір є публічною офертою відповідно до статей 633, 641 Цивільного кодексу України. ${fill(legal.seller, 'ПІБ ФОП або назва компанії')} (далі — «Виконавець»), що діє під брендом «${h(school)}», пропонує будь-якій дієздатній фізичній особі (далі — «Замовник») укласти договір про надання послуг на умовах, викладених нижче.</p>
-<p>1.2. Повним і беззастережним прийняттям (акцептом) цієї оферти відповідно до статті 642 Цивільного кодексу України є оплата Замовником послуг на сайті ${fill(legal.site, 'адреса сайту')} (далі — «Сайт»). З моменту оплати договір вважається укладеним.</p>
+<p>1.1. Цей договір є публічною офертою відповідно до статей 633, 641 Цивільного кодексу України. ${provider('uk')} (далі — «Виконавець»)${legal.seller ? `, що діє під брендом «${h(school)}»,` : ''} пропонує будь-якій дієздатній фізичній особі (далі — «Замовник») укласти договір про надання послуг на умовах, викладених нижче.</p>
+<p>1.2. Повним і беззастережним прийняттям (акцептом) цієї оферти відповідно до статті 642 Цивільного кодексу України є оплата Замовником послуг, замовлених на сайті ${site()} (далі — «Сайт»). З моменту оплати договір вважається укладеним.</p>
 <p>1.3. Якщо Замовник не досяг 18 років, договір укладає і послуги оплачує його батько, мати або інший законний представник.</p>
 
 <h2>2. Терміни</h2>
 <p><b>Заняття</b> — індивідуальне онлайн-заняття з англійської мови тривалістю ${min} хвилин, яке проводить викладач Виконавця для одного Замовника.</p>
 <p><b>Разове заняття</b> — оплата одного Заняття.</p>
-<p><b>Абонемент</b> — передоплачений пакет із ${monthly.lessons} Занять, розрахований на один календарний місяць (орієнтовно 2 Заняття на тиждень).</p>
+<p><b>Абонемент</b> — передоплачений пакет із ${monthly.lessons} Занять, розрахований на один календарний місяць (орієнтовно 2 Заняття на тиждень), за зниженою ціною одного Заняття.</p>
 <p><b>Особистий кабінет</b> — розділ Сайту, де Замовник оплачує послуги й бачить кількість оплачених і проведених Занять.</p>
 
 <h2>3. Предмет договору</h2>
@@ -56,10 +71,10 @@ function offerUk() {
 <p>4.1. Вартість послуг на дату цієї редакції:</p>
 <ul>
   <li>Разове заняття (${min} хв) — <b>${uah(single.price)}</b>;</li>
-  <li>Абонемент (${monthly.lessons} занять по ${min} хв) — <b>${uah(monthly.price)}</b> (знижка ${monthly.discount}% від вартості ${monthly.lessons} разових занять — ${uah(monthly.fullPrice)}).</li>
+  <li>Абонемент (${monthly.lessons} занять по ${min} хв) — <b>${uah(monthly.price)}</b>, тобто ${uah(monthly.each)} за одне Заняття замість ${uah(single.price)} (вартість ${monthly.lessons} разових занять — ${uah(monthly.fullPrice)}).</li>
 </ul>
 <p>4.2. Актуальні ціни зазначені на Сайті. Виконавець може змінювати ціни; зміна не стосується вже оплачених Занять.</p>
-<p>4.3. Оплата здійснюється в гривнях, на умовах 100% передоплати, через платіжні сервіси, доступні на Сайті. Обов'язок Замовника з оплати виконано з моменту зарахування коштів Виконавцю.</p>
+<p>4.3. Оплата здійснюється в гривнях, на умовах 100% передоплати — через платіжний сервіс на Сайті або переказом за реквізитами, які Замовник бачить на сторінці оплати чи отримує від Виконавця. Обов'язок Замовника з оплати виконано з моменту зарахування коштів Виконавцю.</p>
 <p>4.4. Безкоштовна консультація для визначення рівня не є Заняттям і не потребує оплати.</p>
 
 <h2>5. Порядок надання послуг</h2>
@@ -77,8 +92,8 @@ function offerUk() {
 <p>6.4. Замовник має право: отримувати послуги відповідно до цього договору; переносити Заняття згідно з п. 5.3; відмовитися від договору згідно з розділом 7.</p>
 
 <h2>7. Відмова від договору та повернення коштів</h2>
-<p>7.1. Замовник може будь-коли відмовитися від договору, надіславши заяву на email ${fill(config.email, 'email школи')}.</p>
-<p>7.2. У такому разі Виконавець повертає вартість непроведених Занять. Для Абонемента вартість одного Заняття визначається як ціна Абонемента, поділена на кількість Занять у ньому (${uah(monthly.price / monthly.lessons)}).</p>
+<p>7.1. Замовник може будь-коли відмовитися від договору, надіславши заяву на email ${fill(config.email, 'email школи')}${config.telegram ? ` або в Telegram ${h(config.telegram)}` : ''}.</p>
+<p>7.2. У такому разі Виконавець повертає вартість непроведених Занять. Для Абонемента вартість одного Заняття — ${uah(monthly.each)} (ціна Абонемента, поділена на кількість Занять у ньому).</p>
 <p>7.3. Кошти повертаються тим самим способом, яким було здійснено оплату, протягом 7 робочих днів з дня отримання заяви. Строк зарахування залежить від банку Замовника.</p>
 <p>7.4. Проведені Заняття, а також Заняття, що вважаються проведеними згідно з п. 5.3, поверненню не підлягають.</p>
 
@@ -116,7 +131,7 @@ function privacyUk() {
 <p class="legal-updated">Редакція від ${h(legal.updated)}</p>
 
 <h2>1. Хто обробляє дані</h2>
-<p>Володільцем персональних даних, зібраних на сайті ${fill(legal.site, 'адреса сайту')}, є ${fill(legal.seller, 'ПІБ ФОП або назва компанії')}. Дані обробляються відповідно до Закону України «Про захист персональних даних».</p>
+<p>Володільцем персональних даних, зібраних на сайті ${site()}, є ${legal.seller ? h(legal.seller) : `онлайн-школа англійської мови «${h(config.schoolName)}»`}. Дані обробляються відповідно до Закону України «Про захист персональних даних».</p>
 
 <h2>2. Які дані ми збираємо</h2>
 <ul>
@@ -165,14 +180,14 @@ function offerEn() {
 <p class="legal-updated">Version of ${h(legal.updated)}</p>
 
 <h2>1. General provisions</h2>
-<p>1.1. This agreement is a public offer under Articles 633 and 641 of the Civil Code of Ukraine. ${fill(legal.seller, 'full name of the sole proprietor or company')} (the "Provider"), operating under the brand "${h(school)}", offers any legally capable individual (the "Customer") to enter into a service agreement on the terms set out below.</p>
-<p>1.2. Under Article 642 of the Civil Code of Ukraine, the Customer's payment for services on the website ${fill(legal.site, 'website address')} (the "Website") constitutes full and unconditional acceptance of this offer. The agreement is concluded at the moment of payment.</p>
+<p>1.1. This agreement is a public offer under Articles 633 and 641 of the Civil Code of Ukraine. ${legal.seller ? h(legal.seller) : `The online English school "${h(school)}"`} (the "Provider")${legal.seller ? `, operating under the brand "${h(school)}",` : ''} offers any legally capable individual (the "Customer") to enter into a service agreement on the terms set out below.</p>
+<p>1.2. Under Article 642 of the Civil Code of Ukraine, the Customer's payment for services ordered on the website ${site()} (the "Website") constitutes full and unconditional acceptance of this offer. The agreement is concluded at the moment of payment.</p>
 <p>1.3. If the Customer is under 18, the agreement is concluded and the services are paid for by their parent or other legal guardian.</p>
 
 <h2>2. Definitions</h2>
 <p><b>Lesson</b> — a one-to-one online English lesson lasting ${min} minutes, taught by the Provider's teacher to one Customer.</p>
 <p><b>Single lesson</b> — payment for one Lesson.</p>
-<p><b>Package</b> — a prepaid bundle of ${monthly.lessons} Lessons intended for one calendar month (about 2 Lessons a week).</p>
+<p><b>Package</b> — a prepaid bundle of ${monthly.lessons} Lessons intended for one calendar month (about 2 Lessons a week) at a reduced price per Lesson.</p>
 <p><b>Personal account</b> — the section of the Website where the Customer pays for services and sees the number of paid and completed Lessons.</p>
 
 <h2>3. Subject of the agreement</h2>
@@ -185,10 +200,10 @@ function offerEn() {
 <p>4.1. Prices as of the date of this version:</p>
 <ul>
   <li>Single lesson (${min} min) — <b>${UAH(single.price)}</b>;</li>
-  <li>Package (${monthly.lessons} lessons of ${min} min) — <b>${UAH(monthly.price)}</b> (a ${monthly.discount}% discount on the price of ${monthly.lessons} single lessons, ${UAH(monthly.fullPrice)}).</li>
+  <li>Package (${monthly.lessons} lessons of ${min} min) — <b>${UAH(monthly.price)}</b>, i.e. ${UAH(monthly.each)} per Lesson instead of ${UAH(single.price)} (${monthly.lessons} single lessons cost ${UAH(monthly.fullPrice)}).</li>
 </ul>
 <p>4.2. Current prices are shown on the Website. The Provider may change prices; changes do not apply to Lessons already paid for.</p>
-<p>4.3. Payment is made in Ukrainian hryvnias, 100% in advance, via the payment methods available on the Website. The Customer's payment obligation is fulfilled when the funds are received by the Provider.</p>
+<p>4.3. Payment is made in Ukrainian hryvnias, 100% in advance — via the payment service on the Website or by bank transfer using the details shown on the payment page or sent by the Provider. The Customer's payment obligation is fulfilled when the funds are received by the Provider.</p>
 <p>4.4. The free level-check consultation is not a Lesson and requires no payment.</p>
 
 <h2>5. Provision of services</h2>
@@ -206,8 +221,8 @@ function offerEn() {
 <p>6.4. The Customer may: receive services under this agreement; reschedule Lessons under clause 5.3; withdraw from the agreement under section 7.</p>
 
 <h2>7. Withdrawal and refunds</h2>
-<p>7.1. The Customer may withdraw from the agreement at any time by sending a request to ${fill(config.email, 'school email')}.</p>
-<p>7.2. In this case, the Provider refunds the cost of Lessons not yet held. For a Package, the cost of one Lesson is the Package price divided by the number of Lessons in it (${UAH(monthly.price / monthly.lessons)}).</p>
+<p>7.1. The Customer may withdraw from the agreement at any time by sending a request to ${fill(config.email, 'school email')}${config.telegram ? ` or via Telegram ${h(config.telegram)}` : ''}.</p>
+<p>7.2. In this case, the Provider refunds the cost of Lessons not yet held. For a Package, the cost of one Lesson is ${UAH(monthly.each)} (the Package price divided by the number of Lessons in it).</p>
 <p>7.3. Refunds are made by the same method as the payment, within 7 business days of receiving the request. The time for funds to arrive depends on the Customer's bank.</p>
 <p>7.4. Lessons that have been held, and Lessons considered completed under clause 5.3, are not refundable.</p>
 
@@ -244,7 +259,7 @@ function privacyEn() {
 <p class="legal-updated">Version of ${h(legal.updated)}</p>
 
 <h2>1. Who processes the data</h2>
-<p>The controller of personal data collected on the website ${fill(legal.site, 'website address')} is ${fill(legal.seller, 'full name of the sole proprietor or company')}. Data is processed in accordance with the Law of Ukraine "On Personal Data Protection".</p>
+<p>The controller of personal data collected on the website ${site()} is ${legal.seller ? h(legal.seller) : `the online English school "${h(config.schoolName)}"`}. Data is processed in accordance with the Law of Ukraine "On Personal Data Protection".</p>
 
 <h2>2. What data we collect</h2>
 <ul>

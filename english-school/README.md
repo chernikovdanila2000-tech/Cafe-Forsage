@@ -14,7 +14,7 @@
 **Цены** (меняются в админке, всё пересчитывается само)
 - Консультация 20 мин — бесплатно
 - Разовое занятие 60 мин — 400 ₴
-- Абонемент: 8 занятий (2 в неделю) — 3 200 ₴ − 20% = **2 560 ₴** (320 ₴ за занятие, экономия 640 ₴)
+- Абонемент: 8 занятий (2 в неделю) по 350 ₴ = **2 800 ₴** вместо 3 200 ₴ (экономия 400 ₴)
 
 **Админ-панель `/admin`**
 - **Огляд** — чек-лист «Готовність до запуску», новые заявки, оплаты на проверку
@@ -76,7 +76,7 @@ npm test       # 21 автоматическая проверка сайта
 ## Переменные окружения (необязательные)
 
 Все поля из «Налаштування» можно задать и переменными — значение из админки важнее:
-`SCHOOL_PHONE`, `SCHOOL_EMAIL`, `SCHOOL_TELEGRAM`, `SCHOOL_INSTAGRAM`, `LESSON_PRICE`, `SUBSCRIPTION_LESSONS`, `SUBSCRIPTION_DISCOUNT`, `PAYMENT_URL`, `PAYMENT_DETAILS`, `LEGAL_SELLER`, `LEGAL_TAX_ID`, `LEGAL_ADDRESS`, `SITE_URL`, `META_PIXEL_ID`, `GA_MEASUREMENT_ID`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
+`SCHOOL_PHONE`, `SCHOOL_EMAIL`, `SCHOOL_TELEGRAM`, `SCHOOL_INSTAGRAM`, `LESSON_PRICE`, `SUBSCRIPTION_LESSONS`, `SUBSCRIPTION_LESSON_PRICE`, `PAYMENT_URL`, `PAYMENT_DETAILS`, `LEGAL_SELLER`, `LEGAL_TAX_ID`, `LEGAL_ADDRESS`, `SITE_URL`, `META_PIXEL_ID`, `GA_MEASUREMENT_ID`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
 
 Прочие: `PORT`, `DB_PATH`, `SCHOOL_NAME`, `SCHOOL_TAGLINE`, `DEMO_PAYMENTS` (`true`/`false`), `LEGAL_UPDATED`.
 

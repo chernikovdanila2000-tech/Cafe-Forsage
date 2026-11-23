@@ -30,10 +30,12 @@ test('головна сторінка: ціни, тексти, мета-теги
   const page = plain(text);
   assert.match(page, /Англійська, яка залишається з вами/);
   assert.match(page, /400 ₴/);
-  assert.match(page, /2\s560 ₴/);
-  assert.match(page, /3\s200 ₴/);
-  assert.match(page, /320 ₴ за заняття замість 400 ₴/);
-  assert.match(page, /Економія 640 ₴/);
+  assert.match(page, /400 ₴/);
+  assert.match(page, /2\s800 ₴/, 'абонемент 8 × 350 = 2 800 ₴');
+  assert.match(page, /3\s200 ₴/, 'без абонемента 8 × 400 = 3 200 ₴');
+  assert.match(page, /350 ₴ за заняття замість 400 ₴/);
+  assert.match(page, /Економія 400 ₴/);
+  assert.match(page, /Вигідно −400 ₴/);
   assert.match(page, /Шкільна програма/);
   assert.match(text, /<html lang="uk">/);
   assert.match(text, /og:image" content="http:\/\/127\.0\.0\.1:\d+\/og\.png"/);
@@ -123,8 +125,8 @@ test('оплата для незалогіненого веде на вхід і
   assert.equal(reg.location, '/pay/monthly');
   const checkout = plain((await b.request('/pay/monthly')).text);
   assert.match(checkout, /Абонемент на місяць/);
-  assert.match(checkout, /2\s560 ₴/);
-  assert.match(checkout, /−20%/);
+  assert.match(checkout, /2\s800 ₴/);
+  assert.match(checkout, /Економія 400 ₴/);
 });
 
 let adminBrowser;
@@ -154,13 +156,13 @@ test('адмін: вхід, огляд, чекліст, заявка з джер
 });
 
 test('адмін: налаштування, перевірка полів, ціни одразу на сайті', async () => {
-  const bad = await adminBrowser.request('/admin/settings', { method: 'POST', form: { lessonPrice: 'abc', packageLessons: '8', packageDiscount: '20' } });
+  const bad = await adminBrowser.request('/admin/settings', { method: 'POST', form: { lessonPrice: 'abc', packageLessons: '8', packageLessonPrice: '350' } });
   assert.equal(bad.status, 400);
   assert.match(plain(bad.text), /Ціна заняття/);
 
   const form = {
     phone: '+380 67 000 11 22', email: 'hello@inkwell.academy', telegram: '@inkwell_academy', instagram: 'inkwell.academy',
-    lessonPrice: '500', packageLessons: '8', packageDiscount: '20',
+    lessonPrice: '500', packageLessons: '8', packageLessonPrice: '350',
     paymentUrl: '', paymentDetails: 'IBAN UA00 0000 0000 0000 0000 0000 0000 0\nФОП Тест',
     legalSeller: 'ФОП Тестовий Тест Тестович', legalTaxId: '1234567890', legalAddress: 'м. Київ',
     siteUrl: 'https://inkwell.academy/', metaPixelId: '123456789012345', gaId: 'G-TEST1234', tgBotToken: '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZ_abc',
@@ -171,8 +173,8 @@ test('адмін: налаштування, перевірка полів, ці�
   const home = await browser().request('/');
   const page = plain(home.text);
   assert.match(page, /500 ₴/);
-  assert.match(page, /3\s200 ₴/, 'абонемент 8 × 500 − 20% = 3 200 ₴');
-  assert.match(page, /Економія 800 ₴/);
+  assert.match(page, /4\s000 ₴/, 'без абонемента 8 × 500');
+  assert.match(page, /Економія 1\s200 ₴/, 'абонемент 8 × 350 = 2 800 ₴');
   assert.match(home.text, /fbq\('init',"123456789012345"\)/);
   assert.match(home.text, /googletagmanager\.com\/gtag\/js\?id=G-TEST1234/);
   assert.match(home.text, /https:\/\/t\.me\/inkwell_academy/);
@@ -201,7 +203,7 @@ test('оплата: замовлення без дублів, адмін під�
 
   // DEMO_PAYMENTS увімкнено в тесті, тож спершу перевіряємо демо-шлях на окремому учні.
   const page = plain((await b.request('/pay/monthly')).text);
-  assert.match(page, /2\s560 ₴/);
+  assert.match(page, /2\s800 ₴/);
   await tick();
   assert.ok(telegram.messages.some((m) => m.includes('Нове замовлення')), 'сповіщення про замовлення');
 

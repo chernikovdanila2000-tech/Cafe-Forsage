@@ -222,7 +222,7 @@ function home(ctx, { teachers, reviews }) {
   const price = money(single.price, lang);
   const goals = T('goals.list').split('|');
   const faqVars = {
-    price, n: monthly.lessons, pkg: money(monthly.price, lang), full: money(monthly.fullPrice, lang), discount: monthly.discount,
+    price, n: monthly.lessons, pkg: money(monthly.price, lang), full: money(monthly.fullPrice, lang), each: money(monthly.each, lang),
   };
 
   const body = `
@@ -241,7 +241,7 @@ function home(ctx, { teachers, reviews }) {
       </div>
       <ul class="hero-points">
         <li>${icon.check} ${T('hero.point1')}</li>
-        <li>${icon.check} ${T('hero.point2', { discount: monthly.discount })}</li>
+        <li>${icon.check} ${T('hero.point2', { each: money(monthly.each, lang) })}</li>
         <li>${icon.check} ${T('hero.point3')}</li>
       </ul>
     </div>
@@ -271,7 +271,7 @@ function home(ctx, { teachers, reviews }) {
     <div><b>1:1</b><span>${T('stats.format')}</span></div>
     <div><b>60</b><span>${T('stats.minutes')}</span></div>
     <div><b>${price}</b><span>${T('stats.price')}</span></div>
-    <div><b>−${monthly.discount}%</b><span>${T('stats.discount')}</span></div>
+    <div><b>${money(monthly.each, lang)}</b><span>${T('stats.discount')}</span></div>
   </div>
 </section>
 
@@ -347,14 +347,14 @@ function home(ctx, { teachers, reviews }) {
         <a class="btn btn-ghost" href="/pay/single">${T('pricing.single.cta')}</a>
       </article>
       <article class="price-card price-card-accent">
-        ${monthly.discount ? `<span class="price-badge">${T('pricing.monthly.badge', { discount: monthly.discount })}</span>` : ''}
+        ${monthly.save ? `<span class="price-badge">${T('pricing.monthly.badge', { save: money(monthly.save, lang) })}</span>` : ''}
         <h3>${T('pricing.monthly.title')}</h3>
-        ${monthly.discount ? `<p class="price-old">${money(monthly.fullPrice, lang)}</p>` : ''}
+        ${monthly.save ? `<p class="price-old">${money(monthly.fullPrice, lang)}</p>` : ''}
         <p class="price">${money(monthly.price, lang)}<small> ${T('pricing.monthly.per', { n: monthly.lessons })}</small></p>
         <ul>
           <li>${icon.check} ${T('pricing.monthly.f1', { n: monthly.lessons })}</li>
-          <li>${icon.check} ${T('pricing.monthly.f2', { each: money(monthly.price / monthly.lessons, lang), single: price })}</li>
-          ${monthly.discount ? `<li>${icon.check} ${T('pricing.monthly.f3', { save: money(monthly.fullPrice - monthly.price, lang) })}</li>` : ''}
+          <li>${icon.check} ${T('pricing.monthly.f2', { each: money(monthly.each, lang), single: price })}</li>
+          ${monthly.save ? `<li>${icon.check} ${T('pricing.monthly.f3', { save: money(monthly.fullPrice - monthly.price, lang) })}</li>` : ''}
           <li>${icon.check} ${T('pricing.monthly.f4')}</li>
         </ul>
         <a class="btn btn-light" href="/pay/monthly">${T('pricing.monthly.cta')}</a>
@@ -562,10 +562,10 @@ function dashboard(ctx, { balance, orders, teacher }) {
         </div>
         <div class="buy-option buy-option-accent">
           <div>
-            <b>${T('product.monthly')} ${monthly.discount ? `<span class="tag tag-accent">−${monthly.discount}%</span>` : ''}</b>
+            <b>${T('product.monthly')} ${monthly.save ? `<span class="tag tag-accent">−${money(monthly.save, lang)}</span>` : ''}</b>
             <span>${T('pricing.monthly.f1', { n: monthly.lessons })}</span>
           </div>
-          <div class="buy-price">${monthly.discount ? `<s>${money(monthly.fullPrice, lang)}</s>` : ''}<b>${money(monthly.price, lang)}</b></div>
+          <div class="buy-price">${monthly.save ? `<s>${money(monthly.fullPrice, lang)}</s>` : ''}<b>${money(monthly.price, lang)}</b></div>
           <a class="btn btn-small btn-accent" href="/pay/monthly">${T('btn.pay')}</a>
         </div>
         <p class="muted small">${h(T('dash.buyLead', { phone: user.phone || T('dash.noPhone') }))}</p>
@@ -630,7 +630,7 @@ function checkout(ctx, { product, order, mode }) {
     <div class="checkout-row"><span>${T('checkout.student')}</span><b>${h(user.name)}<br><span class="muted small">${h(user.email)}</span></b></div>
     <div class="checkout-row"><span>${T('checkout.number')}</span><b>№ ${order.id}</b></div>
     <div class="checkout-row"><span>${T('checkout.lessons')}</span><b>${h(lessonsLabel(order.lessons, lang))} · 60 ${T('unit.min')}</b></div>
-    ${product.discount && product.id === 'monthly' ? `<div class="checkout-row"><span>${T('checkout.discount')}</span><b>−${product.discount}% (<s>${money(product.fullPrice, lang)}</s>)</b></div>` : ''}
+    ${product.save && product.id === 'monthly' ? `<div class="checkout-row"><span>${T('checkout.discount')}</span><b>${money(product.save, lang)} (<s>${money(product.fullPrice, lang)}</s>)</b></div>` : ''}
     <div class="checkout-row checkout-total"><span>${T('checkout.total')}</span><b>${money(order.amount, lang)}</b></div>
     ${action}
     <p class="legal-note">${T('checkout.legal')}</p>
@@ -990,9 +990,9 @@ function adminSettings(ctx, { values, counts, notice, error }) {
         <div class="form form-3">
           ${field('lessonPrice', { type: 'number' })}
           ${field('packageLessons', { type: 'number' })}
-          ${field('packageDiscount', { type: 'number' })}
+          ${field('packageLessonPrice', { type: 'number' })}
         </div>
-        <p class="muted small">${T('admin.settings.pricePreview', { single: money(single.price, lang), pkg: money(monthly.price, lang), full: money(monthly.fullPrice, lang) })}</p>
+        <p class="muted small">${T('admin.settings.pricePreview', { single: money(single.price, lang), pkg: money(monthly.price, lang), full: money(monthly.fullPrice, lang), each: money(monthly.each, lang), n: monthly.lessons })}</p>
       </div>
 
       <div class="panel">

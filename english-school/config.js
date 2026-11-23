@@ -12,7 +12,7 @@ const EDITABLE = {
   instagram: ['SCHOOL_INSTAGRAM', ''],
   lessonPrice: ['LESSON_PRICE', '400'],
   packageLessons: ['SUBSCRIPTION_LESSONS', '8'],
-  packageDiscount: ['SUBSCRIPTION_DISCOUNT', '20'],
+  packageLessonPrice: ['SUBSCRIPTION_LESSON_PRICE', '350'],
   paymentUrl: ['PAYMENT_URL', ''],
   paymentDetails: ['PAYMENT_DETAILS', ''],
   legalSeller: ['LEGAL_SELLER', ''],
@@ -71,19 +71,21 @@ const config = {
 
   get lessonPrice() { return number('lessonPrice', 1, 100000); },
 
-  // Разове заняття та абонемент на місяць зі знижкою.
+  // Разове заняття та абонемент на місяць: у абонементі кожне заняття дешевше (350 ₴ замість 400 ₴).
   get products() {
     const price = this.lessonPrice;
     const lessons = number('packageLessons', 2, 50);
-    const discount = number('packageDiscount', 0, 90);
+    const each = number('packageLessonPrice', 1, 100000);
+    const fullPrice = lessons * price;
     return {
       single: { id: 'single', lessons: 1, price },
       monthly: {
         id: 'monthly',
         lessons,
-        discount,
-        fullPrice: lessons * price,
-        price: Math.round((lessons * price * (100 - discount)) / 100),
+        each,
+        fullPrice,
+        price: lessons * each,
+        save: Math.max(fullPrice - lessons * each, 0),
       },
     };
   },

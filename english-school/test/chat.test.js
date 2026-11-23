@@ -74,7 +74,7 @@ test('адмін робить викладача й призначає учня'
 });
 
 test('сповіщення в Telegram про повідомлення учня (не частіше раз на 10 хв)', async () => {
-  await admin.request('/admin/settings', { method: 'POST', form: { lessonPrice: '400', packageLessons: '8', packageDiscount: '20', tgBotToken: '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZ_abc' } });
+  await admin.request('/admin/settings', { method: 'POST', form: { lessonPrice: '400', packageLessons: '8', packageLessonPrice: '350', tgBotToken: '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZ_abc' } });
   await admin.request('/admin/telegram/connect', { method: 'POST' });
   site.telegram.messages.length = 0;
   await send(student, studentId, { body: 'Перше питання' });
