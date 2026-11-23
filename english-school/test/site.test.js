@@ -29,11 +29,11 @@ test('головна сторінка: ціни, тексти, мета-теги
   assert.equal(status, 200);
   const page = plain(text);
   assert.match(page, /Англійська, яка залишається з вами/);
-  assert.match(page, /450 ₴/);
-  assert.match(page, /2\s880 ₴/);
-  assert.match(page, /3\s600 ₴/);
-  assert.match(page, /360 ₴ за заняття замість 450 ₴/);
-  assert.match(page, /Економія 720 ₴/);
+  assert.match(page, /400 ₴/);
+  assert.match(page, /2\s560 ₴/);
+  assert.match(page, /3\s200 ₴/);
+  assert.match(page, /320 ₴ за заняття замість 400 ₴/);
+  assert.match(page, /Економія 640 ₴/);
   assert.match(page, /Шкільна програма/);
   assert.match(text, /<html lang="uk">/);
   assert.match(text, /og:image" content="http:\/\/127\.0\.0\.1:\d+\/og\.png"/);
@@ -123,7 +123,7 @@ test('оплата для незалогіненого веде на вхід і
   assert.equal(reg.location, '/pay/monthly');
   const checkout = plain((await b.request('/pay/monthly')).text);
   assert.match(checkout, /Абонемент на місяць/);
-  assert.match(checkout, /2\s880 ₴/);
+  assert.match(checkout, /2\s560 ₴/);
   assert.match(checkout, /−20%/);
 });
 
@@ -181,8 +181,8 @@ test('адмін: налаштування, перевірка полів, ці�
   assert.match(plain((await browser().request('/offer')).text), /ФОП Тестовий Тест Тестович/);
   assert.match(plain((await browser().request('/privacy')).text), /Meta Pixel/);
 
-  // Повертаємо базову ціну 450 ₴ для наступних перевірок.
-  await adminBrowser.request('/admin/settings', { method: 'POST', form: { ...form, lessonPrice: '450' } });
+  // Повертаємо базову ціну 400 ₴ для наступних перевірок.
+  await adminBrowser.request('/admin/settings', { method: 'POST', form: { ...form, lessonPrice: '400' } });
 });
 
 test('адмін: підключення Telegram і сповіщення', async () => {
@@ -201,7 +201,7 @@ test('оплата: замовлення без дублів, адмін під�
 
   // DEMO_PAYMENTS увімкнено в тесті, тож спершу перевіряємо демо-шлях на окремому учні.
   const page = plain((await b.request('/pay/monthly')).text);
-  assert.match(page, /2\s880 ₴/);
+  assert.match(page, /2\s560 ₴/);
   await tick();
   assert.ok(telegram.messages.some((m) => m.includes('Нове замовлення')), 'сповіщення про замовлення');
 

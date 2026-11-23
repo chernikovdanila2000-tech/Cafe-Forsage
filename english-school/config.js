@@ -10,7 +10,7 @@ const EDITABLE = {
   email: ['SCHOOL_EMAIL', 'inkwellschool2@gmail.com'],
   telegram: ['SCHOOL_TELEGRAM', '@Inkwell_sch'],
   instagram: ['SCHOOL_INSTAGRAM', ''],
-  lessonPrice: ['LESSON_PRICE', '450'],
+  lessonPrice: ['LESSON_PRICE', '400'],
   packageLessons: ['SUBSCRIPTION_LESSONS', '8'],
   packageDiscount: ['SUBSCRIPTION_DISCOUNT', '20'],
   paymentUrl: ['PAYMENT_URL', ''],
