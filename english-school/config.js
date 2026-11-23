@@ -47,7 +47,7 @@ const config = {
   schoolName: process.env.SCHOOL_NAME || 'Inkwell Academy',
   tagline: process.env.SCHOOL_TAGLINE || 'School of English',
   currency: '₴',
-  lessonDuration: 60,
+  lessonDuration: Number(process.env.LESSON_DURATION) || 55,
   consultationMinutes: 20,
 
   // На Railway сайт завжди працює через HTTPS, тож cookie передаються лише захищеним каналом.

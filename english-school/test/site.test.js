@@ -37,6 +37,13 @@ test('головна сторінка: ціни, тексти, мета-теги
   assert.match(page, /Економія 400 ₴/);
   assert.match(page, /Вигідно −400 ₴/);
   assert.match(page, /Шкільна програма/);
+  // Заняття триває 55 хвилин, консультація — 20.
+  assert.match(page, /55 хвилин з викладачем — 400 ₴/);
+  assert.match(page, /400 ₴ \/ 55 хв/);
+  assert.match(page, /8 занять по 55 хв — 2 на тиждень/);
+  assert.match(page, /0 ₴ \/ 20 хв/);
+  assert.doesNotMatch(page, /60 хв/);
+  assert.match(plain((await b.request('/offer')).text), /тривалістю 55 хвилин/);
   assert.match(text, /<html lang="uk">/);
   assert.match(text, /og:image" content="http:\/\/127\.0\.0\.1:\d+\/og\.png"/);
   // Порожні розділи не показуються, вигаданих людей немає.
@@ -169,6 +176,7 @@ test('адмін: налаштування, перевірка полів, ці�
   };
   const ok = await adminBrowser.request('/admin/settings', { method: 'POST', form });
   assert.equal(ok.location, '/admin/settings?msg=admin.saved');
+  assert.match(plain((await adminBrowser.request('/admin/settings')).text), /\{amount\}, \{payment\}, \{product\}, \{email\}/, 'підказка з дужками не зламалася');
 
   const home = await browser().request('/');
   const page = plain(home.text);

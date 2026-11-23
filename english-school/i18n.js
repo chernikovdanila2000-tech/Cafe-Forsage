@@ -8,7 +8,7 @@ const DEFAULT_LANG = 'uk';
 const dict = {
   uk: {
     'meta.title': 'індивідуальні заняття англійською онлайн',
-    'meta.description': 'Індивідуальні заняття англійською з викладачем онлайн для дітей і дорослих. Будь-яка мета — одна ціна: {price} за 60 хвилин. Безкоштовна консультація.',
+    'meta.description': 'Індивідуальні заняття англійською з викладачем онлайн для дітей і дорослих. Будь-яка мета — одна ціна: {price} за {min} хвилин. Безкоштовна консультація.',
     'lang.switch': 'Мова сайту',
 
     'nav.goals': 'Для кого',
@@ -53,7 +53,7 @@ const dict = {
     'hero.eyebrow': 'Онлайн-школа англійської мови',
     'hero.title': 'Англійська, яка <em>залишається</em> з вами',
     'hero.lead': 'Індивідуальні заняття з викладачем онлайн — для дітей і дорослих, з нуля чи для вдосконалення. Ви кажете, що вам потрібно, а викладач будує кожне заняття саме під вас.',
-    'hero.price': '60 хвилин з викладачем — {price}',
+    'hero.price': '{min} хвилин з викладачем — {price}',
     'hero.cta': 'Безкоштовна консультація',
     'hero.pricing': 'Ціни',
     'hero.cabinet': 'Мій кабінет',
@@ -77,7 +77,7 @@ const dict = {
     'goals.title': 'Один викладач — будь-яка мета',
     'goals.lead': 'Не потрібно обирати курс чи програму. Скажіть, що вам потрібно, — і заняття будуть саме про це.',
     'goals.list': 'Шкільна програма|Підготовка до НМТ|Університет|Англійська з нуля|Розмовна англійська|Граматика|Для роботи|Співбесіди|Подорожі|Переїзд за кордон|IELTS, TOEFL|Для дітей і підлітків',
-    'goals.note': 'Ціна однакова для будь-якої мети: <b>{price}</b> за 60 хвилин.',
+    'goals.note': 'Ціна однакова для будь-якої мети: <b>{price}</b> за {min} хвилин.',
 
     'format.eyebrow': 'Як навчаємо',
     'format.title': 'Заняття, побудовані навколо вас',
@@ -86,7 +86,7 @@ const dict = {
     'format.f2.title': 'Індивідуальний план',
     'format.f2.text': 'Викладач складає план під вашу мету й темп — без шаблонних програм.',
     'format.f3.title': 'Онлайн у зручний час',
-    'format.f3.text': 'Заняття по 60 хвилин у Zoom або Google Meet. Розклад узгоджуєте з викладачем.',
+    'format.f3.text': 'Заняття по {min} хвилин у Zoom або Google Meet. Розклад узгоджуєте з викладачем.',
     'format.f4.title': 'Практика й зворотний зв\'язок',
     'format.f4.text': 'Багато розмови, короткі домашні завдання й чесна оцінка вашого прогресу.',
 
@@ -103,7 +103,7 @@ const dict = {
 
     'pricing.eyebrow': 'Вартість',
     'pricing.title': 'Прості й чесні ціни',
-    'pricing.lead': 'Усі заняття індивідуальні, з викладачем, по 60 хвилин. Ціна не залежить від мети чи рівня.',
+    'pricing.lead': 'Усі заняття індивідуальні, з викладачем, по {min} хвилин. Ціна не залежить від мети чи рівня.',
     'pricing.trial.title': 'Консультація',
     'pricing.trial.per': '/ {min} хв',
     'pricing.trial.f1': 'Визначимо ваш рівень',
@@ -111,7 +111,7 @@ const dict = {
     'pricing.trial.f3': 'Підкажемо, з чого почати',
     'pricing.trial.cta': 'Записатися',
     'pricing.single.title': 'Разове заняття',
-    'pricing.single.per': '/ 60 хв',
+    'pricing.single.per': '/ {min} хв',
     'pricing.single.f1': 'Один на один з викладачем',
     'pricing.single.f2': 'Будь-яка тема й мета',
     'pricing.single.f3': 'Без зобов\'язань',
@@ -119,7 +119,7 @@ const dict = {
     'pricing.monthly.badge': 'Вигідно −{save}',
     'pricing.monthly.title': 'Абонемент на місяць',
     'pricing.monthly.per': '/ {n} занять',
-    'pricing.monthly.f1': '{n} занять по 60 хв — 2 на тиждень',
+    'pricing.monthly.f1': '{n} занять по {min} хв — 2 на тиждень',
     'pricing.monthly.f2': '{each} за заняття замість {single}',
     'pricing.monthly.f3': 'Економія {save}',
     'pricing.monthly.f4': 'Регулярність, яка дає результат',
@@ -139,7 +139,7 @@ const dict = {
     'faq.q2': 'Чи займаєтеся ви з дітьми?',
     'faq.a2': 'Так, з дітьми, підлітками й дорослими. Для школярів допомагаємо зі шкільною програмою та підготовкою до НМТ.',
     'faq.q3': 'Чи залежить ціна від мети?',
-    'faq.a3': 'Ні. Шкільна програма, вступ, робота, подорожі чи розмовна практика — будь-яке заняття коштує {price} за 60 хвилин.',
+    'faq.a3': 'Ні. Шкільна програма, вступ, робота, подорожі чи розмовна практика — будь-яке заняття коштує {price} за {min} хвилин.',
     'faq.q4': 'Як працює абонемент?',
     'faq.a4': '{n} занять на місяць, по 2 на тиждень, — по {each} замість {price}. Ви платите {pkg} замість {full}. Абонемент діє 30 днів з дати оплати.',
     'faq.q5': 'Як оплатити?',
@@ -457,7 +457,7 @@ const dict = {
 
   en: {
     'meta.title': 'one-to-one English lessons online',
-    'meta.description': 'One-to-one online English lessons with a teacher for kids and adults. Any goal, one price: {price} for 60 minutes. Free consultation.',
+    'meta.description': 'One-to-one online English lessons with a teacher for kids and adults. Any goal, one price: {price} for {min} minutes. Free consultation.',
     'lang.switch': 'Site language',
 
     'nav.goals': 'Who it\'s for',
@@ -502,7 +502,7 @@ const dict = {
     'hero.eyebrow': 'Online English school',
     'hero.title': 'English that <em>stays</em> with you',
     'hero.lead': 'One-to-one online lessons with a teacher — for kids and adults, from zero or to polish your skills. You tell us what you need, and your teacher builds every lesson around you.',
-    'hero.price': '60 minutes with a teacher — {price}',
+    'hero.price': '{min} minutes with a teacher — {price}',
     'hero.cta': 'Free consultation',
     'hero.pricing': 'Pricing',
     'hero.cabinet': 'My account',
@@ -526,7 +526,7 @@ const dict = {
     'goals.title': 'One teacher — any goal',
     'goals.lead': 'No need to pick a course or a programme. Tell us what you need, and your lessons will be about exactly that.',
     'goals.list': 'School curriculum|National exam (NMT)|University|English from zero|Speaking|Grammar|For work|Job interviews|Travel|Moving abroad|IELTS, TOEFL|Kids and teens',
-    'goals.note': 'The price is the same for any goal: <b>{price}</b> for 60 minutes.',
+    'goals.note': 'The price is the same for any goal: <b>{price}</b> for {min} minutes.',
 
     'format.eyebrow': 'How we teach',
     'format.title': 'Lessons built around you',
@@ -535,7 +535,7 @@ const dict = {
     'format.f2.title': 'A personal plan',
     'format.f2.text': 'Your teacher builds a plan around your goal and pace — no one-size-fits-all programmes.',
     'format.f3.title': 'Online, when it suits you',
-    'format.f3.text': '60-minute lessons on Zoom or Google Meet. You agree on the schedule with your teacher.',
+    'format.f3.text': '{min}-minute lessons on Zoom or Google Meet. You agree on the schedule with your teacher.',
     'format.f4.title': 'Practice and feedback',
     'format.f4.text': 'Lots of speaking, short homework and honest feedback on your progress.',
 
@@ -552,7 +552,7 @@ const dict = {
 
     'pricing.eyebrow': 'Pricing',
     'pricing.title': 'Simple, honest pricing',
-    'pricing.lead': 'All lessons are one-to-one with a teacher, 60 minutes each. The price doesn\'t depend on your goal or level.',
+    'pricing.lead': 'All lessons are one-to-one with a teacher, {min} minutes each. The price doesn\'t depend on your goal or level.',
     'pricing.trial.title': 'Consultation',
     'pricing.trial.per': '/ {min} min',
     'pricing.trial.f1': 'We assess your level',
@@ -560,7 +560,7 @@ const dict = {
     'pricing.trial.f3': 'We suggest where to start',
     'pricing.trial.cta': 'Book now',
     'pricing.single.title': 'Single lesson',
-    'pricing.single.per': '/ 60 min',
+    'pricing.single.per': '/ {min} min',
     'pricing.single.f1': 'One-to-one with a teacher',
     'pricing.single.f2': 'Any topic, any goal',
     'pricing.single.f3': 'No commitment',
@@ -568,7 +568,7 @@ const dict = {
     'pricing.monthly.badge': 'Save {save}',
     'pricing.monthly.title': 'Monthly package',
     'pricing.monthly.per': '/ {n} lessons',
-    'pricing.monthly.f1': '{n} lessons of 60 min — 2 a week',
+    'pricing.monthly.f1': '{n} lessons of {min} min — 2 a week',
     'pricing.monthly.f2': '{each} per lesson instead of {single}',
     'pricing.monthly.f3': 'You save {save}',
     'pricing.monthly.f4': 'Regular practice that gets results',
@@ -588,7 +588,7 @@ const dict = {
     'faq.q2': 'Do you teach kids?',
     'faq.a2': 'Yes — kids, teenagers and adults. For schoolchildren we help with the school curriculum and exam preparation.',
     'faq.q3': 'Does the price depend on my goal?',
-    'faq.a3': 'No. School, university entrance, work, travel or speaking practice — any lesson costs {price} for 60 minutes.',
+    'faq.a3': 'No. School, university entrance, work, travel or speaking practice — any lesson costs {price} for {min} minutes.',
     'faq.q4': 'How does the package work?',
     'faq.a4': '{n} lessons a month, 2 a week, — {each} each instead of {price}. You pay {pkg} instead of {full}. The package is valid for 30 days from payment.',
     'faq.q5': 'How do I pay?',
@@ -752,9 +752,13 @@ const dict = {
   },
 };
 
+// Значення, що підставляються в усі тексти автоматично (наприклад, тривалість заняття {min}).
+const defaults = {};
+
 function t(lang, key, vars) {
   const text = dict[lang]?.[key] ?? dict[DEFAULT_LANG][key] ?? key;
-  return vars ? text.replace(/\{(\w+)\}/g, (_, name) => vars[name] ?? '') : text;
+  const all = { ...defaults, ...vars };
+  return text.replace(/\{(\w+)\}/g, (match, name) => (name in all ? all[name] ?? '' : vars ? '' : match));
 }
 
-module.exports = { t, LANGS, DEFAULT_LANG, dict };
+module.exports = { t, LANGS, DEFAULT_LANG, dict, defaults };

@@ -1,5 +1,8 @@
 const config = require('./config');
-const { t } = require('./i18n');
+const { t, defaults: textDefaults } = require('./i18n');
+
+// Тривалість заняття підставляється в усі тексти як {min}.
+textDefaults.min = config.lessonDuration;
 
 // ---------- Утиліти ----------
 
@@ -155,7 +158,7 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=8">
+<link rel="stylesheet" href="/styles.css?v=9">
 ${analytics(events)}
 </head>
 <body class="${h(bodyClass)}">
@@ -248,7 +251,7 @@ function home(ctx, { teachers, reviews }) {
     <div class="hero-card" aria-hidden="true">
       <div class="hc-top">
         <span class="hc-badge">${T('hero.card.badge')}</span>
-        <span class="hc-time">${icon.clock} 60 ${T('unit.min')}</span>
+        <span class="hc-time">${icon.clock} ${config.lessonDuration} ${T('unit.min')}</span>
       </div>
       <p class="hc-title">${T('hero.card.when')}</p>
       <div class="hc-teacher">
@@ -269,7 +272,7 @@ function home(ctx, { teachers, reviews }) {
 <section class="stats">
   <div class="container stats-inner">
     <div><b>1:1</b><span>${T('stats.format')}</span></div>
-    <div><b>60</b><span>${T('stats.minutes')}</span></div>
+    <div><b>${config.lessonDuration}</b><span>${T('stats.minutes')}</span></div>
     <div><b>${price}</b><span>${T('stats.price')}</span></div>
     <div><b>${money(monthly.each, lang)}</b><span>${T('stats.discount')}</span></div>
   </div>
@@ -555,7 +558,7 @@ function dashboard(ctx, { balance, orders, teacher }) {
         <div class="buy-option">
           <div>
             <b>${T('product.single')}</b>
-            <span>${lessonsLabel(1, lang)} · 60 ${T('unit.min')}</span>
+            <span>${lessonsLabel(1, lang)} · ${config.lessonDuration} ${T('unit.min')}</span>
           </div>
           <div class="buy-price"><b>${money(single.price, lang)}</b></div>
           <a class="btn btn-small btn-ghost" href="/pay/single">${T('btn.pay')}</a>
@@ -629,7 +632,7 @@ function checkout(ctx, { product, order, mode }) {
     <h1>${h(productName(product.id, lang))}</h1>
     <div class="checkout-row"><span>${T('checkout.student')}</span><b>${h(user.name)}<br><span class="muted small">${h(user.email)}</span></b></div>
     <div class="checkout-row"><span>${T('checkout.number')}</span><b>№ ${order.id}</b></div>
-    <div class="checkout-row"><span>${T('checkout.lessons')}</span><b>${h(lessonsLabel(order.lessons, lang))} · 60 ${T('unit.min')}</b></div>
+    <div class="checkout-row"><span>${T('checkout.lessons')}</span><b>${h(lessonsLabel(order.lessons, lang))} · ${config.lessonDuration} ${T('unit.min')}</b></div>
     ${product.save && product.id === 'monthly' ? `<div class="checkout-row"><span>${T('checkout.discount')}</span><b>${money(product.save, lang)} (<s>${money(product.fullPrice, lang)}</s>)</b></div>` : ''}
     <div class="checkout-row checkout-total"><span>${T('checkout.total')}</span><b>${money(order.amount, lang)}</b></div>
     ${action}
