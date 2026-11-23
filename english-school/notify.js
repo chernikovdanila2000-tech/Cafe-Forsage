@@ -1,4 +1,4 @@
-// Сповіщення адміністратору в Telegram: нові заявки, реєстрації та оплати.
+// Сповіщення адміністратору в Telegram: нові заявки, реєстрації, оплати й вибір викладача.
 // Бот підключається в адмін-панелі: токен від @BotFather → написати боту /start → «Підключити».
 
 const config = require('./config');
@@ -67,12 +67,6 @@ const events = {
     `№ ${o.id}: ${esc(productName)}, ${o.amount} ₴`,
     `${esc(u.name)} · ${esc(u.phone)} · ${esc(u.email)}`,
     site() && `Підтвердити оплату: ${site()}/admin/orders`,
-  ]),
-  chat: (student, teacher, text) => send([
-    '💬 <b>Нове повідомлення в чаті</b>',
-    `Від учня: ${esc(student.name)}${teacher ? ` → викладачу ${esc(teacher.name)}` : ''}`,
-    text && `«${esc(text.length > 200 ? `${text.slice(0, 200)}…` : text)}»`,
-    site() && `${site()}/chat/${student.id}`,
   ]),
   paid: (o, u, productName) => send([
     '💰 <b>Оплачено</b>',

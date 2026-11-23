@@ -117,7 +117,6 @@ function ctx(req) {
     path: req.path,
     hasTeachers: db.teachers.all().length > 0,
     hasReviews: db.reviews.all().length > 0,
-    chatUnread: req.user ? db.chat.unreadFor(req.user) : 0,
   };
 }
 
@@ -305,7 +304,7 @@ app.get('/dashboard', requireUser, (req, res) => {
   }));
 });
 
-// Учень сам обирає викладача — після цього в нього з'являється чат із ним.
+// Учень сам обирає викладача — після цього викладач бачить його у своєму кабінеті.
 app.post('/choose-teacher', requireUser, (req, res) => {
   if (req.user.is_teacher || req.user.is_admin) return res.redirect('/dashboard');
   const teacherId = teacherAccount(req.body.teacher_id);
@@ -321,137 +320,6 @@ app.post('/choose-teacher', requireUser, (req, res) => {
   res.redirect('/dashboard?msg=teacher_chosen');
 });
 
-// ---------- Чат учня з викладачем ----------
-
-// Дозволені файли: фото, документи, аудіо й відео до 20 МБ. SVG і HTML заборонені (у них може бути код).
-const CHAT_FILE_TYPES = {
-  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif',
-  '.heic': 'image/heic', '.heif': 'image/heif',
-  '.pdf': 'application/pdf', '.txt': 'text/plain', '.rtf': 'application/rtf',
-  '.doc': 'application/msword', '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  '.xls': 'application/vnd.ms-excel', '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  '.ppt': 'application/vnd.ms-powerpoint', '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  '.odt': 'application/vnd.oasis.opendocument.text',
-  '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.ogg': 'audio/ogg', '.oga': 'audio/ogg', '.opus': 'audio/ogg',
-  '.wav': 'audio/wav', '.aac': 'audio/aac', '.weba': 'audio/webm',
-  '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.webm': 'video/webm',
-  '.zip': 'application/zip',
-};
-// Що можна показувати прямо в браузері; решта файлів лише завантажується.
-app.locals.chatExtensions = Object.keys(CHAT_FILE_TYPES);
-const INLINE_TYPES = /^(image\/(jpeg|png|webp|gif)|application\/pdf|audio\/|video\/)/;
-
-const chatUpload = multer({
-  storage: multer.diskStorage({
-    destination: db.CHAT_DIR,
-    filename: (req, file, cb) => cb(null, crypto.randomBytes(16).toString('hex') + path.extname(file.originalname).toLowerCase()),
-  }),
-  limits: { fileSize: 20 * 1024 * 1024, files: 5, fields: 5 },
-  fileFilter: (req, file, cb) => {
-    if (CHAT_FILE_TYPES[path.extname(file.originalname).toLowerCase()]) return cb(null, true);
-    req.rejectedFile = originalName(file.originalname);
-    cb(null, false);
-  },
-}).array('files', 5);
-
-// Назви файлів із телефонів часто приходять у кодуванні latin1 — повертаємо кирилицю.
-const originalName = (name) => {
-  const fixed = Buffer.from(name, 'latin1').toString('utf8');
-  return (/\uFFFD/.test(fixed) ? name : fixed).replace(/[\r\n"\\]/g, '_').slice(0, 150);
-};
-
-const wantsJson = (req) => (req.get('accept') || '').includes('application/json');
-
-function chatContext(req, res, studentId) {
-  const student = db.users.byId(studentId);
-  if (!student || student.is_teacher || student.is_admin || !db.chat.canAccess(req.user, studentId)) return null;
-  if (req.user.id === student.id && !student.teacher_id) return null;
-  return { student, teacher: student.teacher_id ? db.users.byId(student.teacher_id) : null };
-}
-
-function renderChat(req, res, studentId, error) {
-  const chat = chatContext(req, res, studentId);
-  if (!chat) return notFound(req, res);
-  db.chat.markRead(req.user.id, studentId);
-  res.status(error ? 400 : 200).send(views.chatPage(ctx(req), {
-    ...chat, messages: db.chat.list(studentId), error, extensions: app.locals.chatExtensions,
-  }));
-}
-
-app.get('/chat', requireUser, (req, res) => {
-  if (req.user.is_teacher) return res.redirect('/teacher');
-  if (req.user.is_admin) return res.redirect('/admin/chats');
-  if (!req.user.teacher_id) return res.redirect('/dashboard');
-  renderChat(req, res, req.user.id);
-});
-
-app.get('/chat/:studentId', requireUser, (req, res) => renderChat(req, res, Number(req.params.studentId)));
-
-// Нові повідомлення для автооновлення чату (кожні кілька секунд).
-app.get('/chat/:studentId/messages', requireUser, (req, res) => {
-  const studentId = Number(req.params.studentId);
-  if (!chatContext(req, res, studentId)) return res.status(404).json({ error: 'not_found' });
-  const messages = db.chat.list(studentId, Number(req.query.after) || 0);
-  if (messages.length) db.chat.markRead(req.user.id, studentId);
-  res.json({ messages: messages.map((m) => ({ id: m.id, html: views.messageHtml(m, req.user, req.lang) })) });
-});
-
-app.post('/chat/:studentId', requireUser, (req, res) => {
-  const studentId = Number(req.params.studentId);
-  if (!chatContext(req, res, studentId)) return wantsJson(req) ? res.status(404).json({ error: 'not_found' }) : notFound(req, res);
-  chatUpload(req, res, (err) => {
-    const files = req.files || [];
-    const fail = (key, vars) => {
-      for (const f of files) fs.rm(f.path, { force: true }, () => {});
-      const error = t(req.lang, key, vars);
-      return wantsJson(req) ? res.status(400).json({ error }) : renderChat(req, res, studentId, error);
-    };
-    if (req.rejectedFile) return fail('chat.badType', { name: req.rejectedFile });
-    if (err) return fail('chat.badFile');
-    const body = field(req.body.body, 4000);
-    if (!body && !files.length) return fail('chat.emptyMessage');
-
-    const history = db.chat.list(studentId);
-    const before = history.at(-1)?.id || 0;
-    // Сповіщення адміністратору, коли пише учень, — не частіше ніж раз на 10 хвилин на одну розмову.
-    const lastFromStudent = [...history].reverse().find((m) => m.sender_id === studentId);
-    const quiet = !lastFromStudent || Date.now() - Date.parse(`${lastFromStudent.created_at.replace(' ', 'T')}Z`) > 10 * 60 * 1000;
-    if (req.user.id === studentId && quiet) {
-      const chatInfo = chatContext(req, res, studentId);
-      notify.events.chat(chatInfo.student, chatInfo.teacher, body || files.map((f) => originalName(f.originalname)).join(', '));
-    }
-    // Текст іде разом із першим файлом; кожен наступний файл — окреме повідомлення.
-    if (!files.length) db.chat.add({ studentId, senderId: req.user.id, body });
-    files.forEach((f, i) => {
-      const ext = path.extname(f.filename);
-      db.chat.add({
-        studentId,
-        senderId: req.user.id,
-        body: i === 0 ? body : '',
-        file: { name: originalName(f.originalname), path: f.filename, type: CHAT_FILE_TYPES[ext], size: f.size },
-      });
-    });
-    db.chat.markRead(req.user.id, studentId);
-    if (!wantsJson(req)) return res.redirect(req.user.id === studentId ? '/chat' : `/chat/${studentId}`);
-    const added = db.chat.list(studentId, before);
-    res.json({ messages: added.map((m) => ({ id: m.id, html: views.messageHtml(m, req.user, req.lang) })) });
-  });
-});
-
-// Файли з чату віддаються лише учасникам розмови.
-app.get('/files/:messageId', requireUser, (req, res) => {
-  const message = db.chat.byId(Number(req.params.messageId));
-  if (!message?.file_path || !db.chat.canAccess(req.user, message.student_id)) return notFound(req, res);
-  const file = path.join(db.CHAT_DIR, path.basename(message.file_path));
-  if (!fs.existsSync(file)) return notFound(req, res);
-  const inline = INLINE_TYPES.test(message.file_type) && !req.query.download;
-  res.setHeader('Content-Type', message.file_type || 'application/octet-stream');
-  res.setHeader('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(message.file_name)}`);
-  res.setHeader('Cache-Control', 'private, max-age=86400');
-  res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; sandbox");
-  res.sendFile(file);
-});
-
 // ---------- Кабінет викладача ----------
 
 function requireTeacher(req, res, next) {
@@ -460,7 +328,7 @@ function requireTeacher(req, res, next) {
 }
 
 app.get('/teacher', requireUser, requireTeacher, (req, res) => {
-  res.send(views.teacherHome(ctx(req), { students: db.users.studentsOf(req.user.id, req.user.id) }));
+  res.send(views.teacherHome(ctx(req), { students: db.users.studentsOf(req.user.id) }));
 });
 
 app.post('/teacher/students/:id/held', requireUser, requireTeacher, (req, res) => {
@@ -629,10 +497,6 @@ admin.post('/users/:id/role', (req, res) => {
     if (makeTeacher) db.users.assignTeacher(user.id, null);
   }
   res.redirect('/admin/students?msg=admin.roleSaved');
-});
-
-admin.get('/chats', (req, res) => {
-  res.send(views.adminChats(ctx(req), { students: db.users.studentsOf(null, req.user.id), counts: adminCounts() }));
 });
 
 admin.get('/students', (req, res) => renderStudents(req, res));

@@ -479,61 +479,16 @@ mark.fill { background: var(--warn-soft); color: var(--warn); padding: 1px 6px; 
 .footer-links a:hover, .footer-contacts a:hover { color: var(--on-dark); }
 .footer-bottom { padding-top: 24px; font-size: .825rem; color: #8f8298; }
 
-/* ---------- Чат ---------- */
-.badge { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: #fff; font-size: .72rem; font-weight: 700; line-height: 1; vertical-align: middle; }
-.badge-light { background: #fff; color: var(--ink); }
-.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* ---------- Викладачі й учні ---------- */
 .pill-teacher { background: var(--accent-soft); color: var(--accent-dark); }
 
-.chat-card { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
-.chat-card > div { display: grid; gap: 2px; flex: 1; }
-.chat-card-icon { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; flex: none; background: var(--ink); color: #fff; }
-.chat-card-off .chat-card-icon { background: var(--tint); color: var(--muted); }
-
-.page-chat main { padding-bottom: 0; }
-.page-chat .site-footer { display: none; }
-.page-chat .chat-hint { padding-bottom: 24px; }
-.chat-page { padding: 32px 0 0; }
-.container-chat { width: min(860px, 100% - 32px); margin-inline: auto; }
-.chat-head h1 { font-size: clamp(1.8rem, 4vw, 2.4rem); margin-bottom: 4px; }
-.chat-head .back-link { margin-bottom: 16px; }
-.chat { margin-top: 20px; }
-.chat-messages { display: flex; flex-direction: column; gap: 14px; padding: 8px 0 24px; min-height: 40vh; }
-.chat-empty { margin: auto; max-width: 420px; text-align: center; color: var(--muted); padding: 40px 0; }
-.msg { display: flex; flex-direction: column; align-items: flex-start; max-width: min(78%, 560px); }
-.msg-mine { align-self: flex-end; align-items: flex-end; }
-.msg-meta { font-size: .75rem; color: var(--muted); margin: 0 6px 4px; }
-.msg-bubble { background: var(--surface); border: 1px solid var(--line); border-radius: 18px 18px 18px 6px; padding: 10px 14px; display: grid; gap: 8px; max-width: 100%; overflow-wrap: anywhere; }
-.msg-mine .msg-bubble { background: var(--ink); border-color: var(--ink); color: #fff; border-radius: 18px 18px 6px 18px; }
-.msg-bubble p { margin: 0; white-space: pre-wrap; }
-.msg-bubble a { color: inherit; }
-.msg-image img { display: block; max-width: 100%; max-height: 360px; border-radius: 12px; object-fit: cover; }
-.msg-bubble audio, .msg-bubble video { max-width: 100%; width: 320px; border-radius: 10px; }
-.msg-file { display: flex; align-items: center; gap: 10px; text-decoration: none; padding: 6px 4px; }
-.msg-file span { display: grid; min-width: 0; }
-.msg-file b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px; }
-.msg-file small { opacity: .7; font-size: .78rem; }
-.msg-file-name { font-size: .8rem; opacity: .8; }
-
-.chat-form { position: sticky; bottom: 0; display: flex; align-items: flex-end; gap: 8px; padding: 12px; margin: 0 -12px; background: var(--bg); border-top: 1px solid var(--line); }
-.chat-attach, .chat-send { width: 46px; height: 46px; flex: none; border-radius: 50%; display: grid; place-items: center; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft); transition: background .2s, border-color .2s; }
-.chat-attach:hover { border-color: var(--accent); color: var(--accent-dark); }
-.chat-attach input { position: absolute; width: 1px; height: 1px; opacity: 0; }
-.chat-attach:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
-.chat-send { background: var(--ink); border-color: var(--ink); color: #fff; }
-.chat-send:hover { background: #4b3553; }
-.chat-send:disabled { opacity: .5; cursor: wait; }
-.chat-input { flex: 1; min-width: 0; display: grid; gap: 6px; }
-.chat-input textarea { resize: none; min-height: 46px; max-height: 200px; border-radius: 23px; padding: 12px 18px; line-height: 1.4; }
-.chat-files { display: flex; flex-wrap: wrap; gap: 6px; }
-.chat-files span { font-size: .78rem; background: var(--accent-soft); color: var(--accent-dark); padding: 3px 10px; border-radius: 999px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chat-hint { font-size: .78rem; color: var(--muted); margin: 0; padding: 0 0 16px; }
-.chat-error { color: var(--danger); font-size: .85rem; margin: 0 0 12px; }
-.chat .flash { margin: 0 0 12px; }
+.teacher-card { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+.teacher-card > div { display: grid; gap: 2px; }
+.teacher-card .panel-label { margin: 0; }
+.teacher-card b { font-weight: 600; font-size: 1.05rem; }
 
 .student-list { display: grid; gap: 12px; }
-.student-row { margin: 0; display: grid; grid-template-columns: 1fr 130px 160px auto; gap: 18px; align-items: center; padding: 18px 22px; }
-.student-row.has-unread { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.student-row { margin: 0; display: grid; grid-template-columns: 1fr 140px auto; gap: 18px; align-items: center; padding: 18px 22px; }
 .student-main { display: grid; gap: 2px; min-width: 0; }
 .student-main b { font-weight: 600; }
 .student-stat { display: grid; gap: 2px; }
@@ -556,7 +511,6 @@ mark.fill { background: var(--warn-soft); color: var(--warn); padding: 1px 6px; 
 .choose-card .muted { margin: 0 0 8px; }
 .choose-card .btn, .choose-card .pill { margin-top: auto; }
 .choose-card.is-current { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
-.chat-card-photo { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex: none; }
 
 /* ---------- Адаптив ---------- */
 @media (max-width: 980px) {
@@ -617,12 +571,7 @@ mark.fill { background: var(--warn-soft); color: var(--warn); padding: 1px 6px; 
   .admin-nav { flex-wrap: nowrap; overflow-x: auto; margin-inline: -16px; padding-inline: 16px; }
   .admin-nav a { white-space: nowrap; }
   .dash-contacts { margin-top: -8px; }
-  .msg { max-width: 88%; }
-  .chat-form { margin: 0 -16px; padding: 10px 12px; }
-  .desktop-only { display: none; }
-  .student-row { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .student-row { grid-template-columns: 1fr; gap: 12px; }
   .student-main, .student-actions { grid-column: 1 / -1; }
   .student-actions { justify-content: flex-start; }
-  .chat-card { flex-wrap: wrap; }
-  .chat-card .btn { width: 100%; }
 }
