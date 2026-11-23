@@ -149,13 +149,13 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 <meta property="og:image:height" content="630">
 <meta property="og:locale" content="${lang === 'uk' ? 'uk_UA' : 'en_GB'}">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="theme-color" content="#1e2b45">
+<meta name="theme-color" content="#3a2840">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=6">
+<link rel="stylesheet" href="/styles.css?v=8">
 ${analytics(events)}
 </head>
 <body class="${h(bodyClass)}">
