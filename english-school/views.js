@@ -159,7 +159,7 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=13">
+<link rel="stylesheet" href="/styles.css?v=14">
 ${analytics(events)}
 </head>
 <body class="${h(bodyClass)}">
@@ -506,6 +506,28 @@ function forgot(ctx) {
 
 // ---------- Особистий кабінет ----------
 
+// Графік годин: вільні — кнопки запису (або просто перегляд), зайняті — червоні, свій запис — лавандовий.
+function slotGrid(days, lang, { bookable, teacherId }) {
+  const T = (key) => t(lang, key);
+  const chip = (date, s) => {
+    if (s.status === 'taken') return `<span class="slot slot-taken" title="${h(T('slot.taken'))}">${s.time} <small>${T('slot.taken')}</small></span>`;
+    if (s.status === 'mine') return `<span class="slot slot-mine">${s.time} <small>${T('slot.mine')}</small></span>`;
+    return bookable ? `<button class="slot" name="slot" value="${date}|${s.time}">${s.time}</button>` : `<span class="slot slot-view">${s.time}</span>`;
+  };
+  return `
+    <form method="post" action="/book" class="slots">
+      ${teacherId ? `<input type="hidden" name="teacher_id" value="${teacherId}">` : ''}
+      ${days.map((d) => `
+        <div class="slot-day">
+          <span class="slot-date">${h(capital(dayLabel(d.date, lang)))}</span>
+          <div class="slot-times">${d.times.map((s) => chip(d.date, s)).join('')}</div>
+        </div>`).join('')}
+    </form>
+    <p class="slot-legend"><span class="slot slot-view">10:00</span> ${T('slot.legendFree')} <span class="slot slot-taken">10:00</span> ${T('slot.legendTaken')}</p>`;
+}
+
+const hasFree = (days) => days.some((d) => d.times.some((s) => s.status === 'free'));
+
 function dashboard(ctx, { balance, orders, teacher, teachers = [], upcoming = [], canBook = 0, hasSchedule = false, freeSlots = [] }) {
   const { lang, user, msg } = ctx;
   const T = (key, vars) => t(lang, key, vars);
@@ -558,20 +580,10 @@ function dashboard(ctx, { balance, orders, teacher, teachers = [], upcoming = []
                 : `<span class="muted small">${T('book.cancelLate')}</span>`}
             </div>`).join('')}
         </div>` : ''}
-      ${!hasSchedule ? `<p class="booking-note">${T('book.noSchedule')}</p>`
-        : canBook <= 0 ? `<p class="booking-note">${T('book.payFirst')}</p>`
-        : !freeSlots.length ? `<p class="booking-note">${T('book.noFree')}</p>`
-        : `
-        <p class="small"><b>${T('book.left', { n: canBook })}</b></p>
-        <form method="post" action="/book" class="slots">
-          ${freeSlots.map((d) => `
-            <div class="slot-day">
-              <span class="slot-date">${h(capital(dayLabel(d.date, lang)))}</span>
-              <div class="slot-times">
-                ${d.times.map((time) => `<button class="slot" name="slot" value="${d.date}|${time}">${time}</button>`).join('')}
-              </div>
-            </div>`).join('')}
-        </form>`}
+      ${!hasSchedule ? `<p class="booking-note">${T('book.noSchedule')}</p>` : `
+        ${canBook <= 0 ? `<p class="booking-note">${T('book.payFirst')}</p>` : `<p class="small"><b>${T('book.left', { n: canBook })}</b></p>`}
+        ${!hasFree(freeSlots) ? `<p class="booking-note">${T('book.noFree')}</p>` : ''}
+        ${freeSlots.length ? slotGrid(freeSlots, lang, { bookable: canBook > 0 }) : ''}`}
     </div>` : ''}
 
     ${teachers.length ? `
@@ -1177,21 +1189,9 @@ function schedulePage(ctx, { teacher, hasSchedule, freeSlots, student, canBook, 
       <h2 class="panel-title">${T('schedule.title')}</h2>
       <p class="muted small">${T('book.lead')}</p>
       ${note}
-      ${!hasSchedule ? `<p class="booking-note">${T('schedule.empty')}</p>`
-        : !freeSlots.length ? `<p class="booking-note">${T('book.noFree')}</p>`
-        : `
-        <form method="post" action="/book" class="slots">
-          <input type="hidden" name="teacher_id" value="${teacher.id}">
-          ${freeSlots.map((d) => `
-            <div class="slot-day">
-              <span class="slot-date">${h(capital(dayLabel(d.date, lang)))}</span>
-              <div class="slot-times">
-                ${d.times.map((time) => (bookable
-                  ? `<button class="slot" name="slot" value="${d.date}|${time}">${time}</button>`
-                  : `<span class="slot slot-view">${time}</span>`)).join('')}
-              </div>
-            </div>`).join('')}
-        </form>`}
+      ${!hasSchedule ? `<p class="booking-note">${T('schedule.empty')}</p>` : `
+        ${!hasFree(freeSlots) ? `<p class="booking-note">${T('book.noFree')}</p>` : ''}
+        ${freeSlots.length ? slotGrid(freeSlots, lang, { bookable, teacherId: teacher.id }) : ''}`}
     </div>
   </div>
 </section>`;

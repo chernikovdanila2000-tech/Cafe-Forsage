@@ -542,6 +542,14 @@ button.slot:active { background: var(--ink); color: #fff; }
 .choose-card .choose-actions .btn, .choose-card .choose-actions .pill { margin-top: 0; }
 .teacher .teacher-slots { margin-top: 16px; }
 .slot-view { cursor: default; color: var(--ink-soft); }
+.slot-taken, .slot-mine { cursor: default; display: inline-flex; align-items: baseline; gap: 5px; }
+.slot-taken { background: var(--danger-soft); border-color: #ecc5bf; color: var(--danger); text-decoration: line-through; text-decoration-thickness: 1px; }
+.slot-taken small, .slot-mine small { font-size: .72rem; font-weight: 600; text-decoration: none; display: inline-block; }
+.slot-taken:hover { border-color: #ecc5bf; color: var(--danger); }
+.slot-mine { background: var(--accent); border-color: var(--accent); color: #fff; }
+.slot-mine:hover { color: #fff; border-color: var(--accent); }
+.slot-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 16px 0 4px; font-size: .82rem; color: var(--muted); }
+.slot-legend .slot { padding: 4px 10px; font-size: .75rem; }
 .slot-view:hover { border-color: var(--line); color: var(--ink-soft); }
 .teacher-card .avatar { width: 88px; height: 88px; margin: 0; font-size: 2.2rem; flex: none; }
 .teacher-card-name { font-size: 1.9rem; margin: 0; }

@@ -33,23 +33,36 @@ function weekday(date) {
   return d === 0 ? 7 : d;
 }
 
-// Вільні слоти викладача: [{ date, times: ['10:00', ...] }] на найближчі DAYS_AHEAD днів.
-function free(teacherId) {
+// Графік викладача на найближчі DAYS_AHEAD днів зі статусом кожної години:
+// [{ date, times: [{ time: '10:00', status: 'free' | 'taken' | 'mine' }] }] — 'mine' означає запис самого глядача.
+function grid(teacherId, viewerId) {
   const availability = db.schedule.get(teacherId);
   const today = kyiv().date;
   const last = addDays(today, DAYS_AHEAD - 1);
   const earliest = kyiv(LEAD_HOURS * HOUR).stamp;
+  const current = kyiv().stamp;
   const taken = db.bookings.taken(teacherId, today, last);
   const days = [];
   for (let i = 0; i < DAYS_AHEAD; i++) {
     const date = addDays(today, i);
-    const times = (availability[weekday(date)] || []).filter((time) => {
-      const slot = `${date} ${time}`;
-      return slot >= earliest && !taken.has(slot);
-    });
+    // Зайняті години показуємо, поки вони не минули; вільні — лише ті, на які ще можна встигнути записатися.
+    const times = (availability[weekday(date)] || [])
+      .filter((time) => `${date} ${time}` >= current)
+      .map((time) => {
+        const by = taken.get(`${date} ${time}`);
+        return { time, status: by === undefined ? 'free' : viewerId && by === viewerId ? 'mine' : 'taken' };
+      })
+      .filter((slot) => slot.status !== 'free' || `${date} ${slot.time}` >= earliest);
     if (times.length) days.push({ date, times });
   }
   return days;
+}
+
+// Лише вільні години: [{ date, times: ['10:00', ...] }].
+function free(teacherId) {
+  return grid(teacherId)
+    .map((d) => ({ date: d.date, times: d.times.filter((s) => s.status === 'free').map((s) => s.time) }))
+    .filter((d) => d.times.length);
 }
 
 const isFree = (teacherId, date, time) => free(teacherId).some((d) => d.date === date && d.times.includes(time));
@@ -59,4 +72,4 @@ const canCancel = (booking) => `${booking.date} ${booking.time}` >= kyiv(CANCEL_
 
 const now = () => kyiv().stamp;
 
-module.exports = { HOURS, DAYS_AHEAD, CANCEL_HOURS, free, isFree, canCancel, now, weekday };
+module.exports = { HOURS, DAYS_AHEAD, CANCEL_HOURS, grid, free, isFree, canCancel, now, weekday };

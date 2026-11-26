@@ -413,9 +413,10 @@ const bookings = {
     if (studentId) { where.push('b.student_id = :studentId'); params.studentId = studentId; }
     return db.prepare(`SELECT ${BOOKING_FIELDS} ${BOOKING_JOIN} WHERE ${where.join(' AND ')} ORDER BY b.date, b.time`).all(params);
   },
+  // Зайняті години викладача: «YYYY-MM-DD HH:MM» → id учня, який записався.
   taken(teacherId, fromDate, toDate) {
-    return new Set(db.prepare("SELECT date || ' ' || time AS slot FROM bookings WHERE teacher_id = ? AND status = 'booked' AND date BETWEEN ? AND ?")
-      .all(teacherId, fromDate, toDate).map((r) => r.slot));
+    return new Map(db.prepare("SELECT date || ' ' || time AS slot, student_id FROM bookings WHERE teacher_id = ? AND status = 'booked' AND date BETWEEN ? AND ?")
+      .all(teacherId, fromDate, toDate).map((r) => [r.slot, r.student_id]));
   },
 };
 

@@ -95,6 +95,12 @@ test('учень записується; час зникає для інших; 
   await pay(other);
   const otherDash = (await other.request('/dashboard')).text;
   assert.ok(!slotsOf(otherDash).includes(later));
+  // Зайнята година видна іншим червоною з позначкою «зайнято», а самому учню — як «ваш запис».
+  const [date, time] = later.split('|');
+  assert.match(otherDash, new RegExp(`class="slot slot-taken"[^>]*>${time} <small>зайнято</small>`));
+  assert.match((await student.request('/dashboard')).text, new RegExp(`class="slot slot-mine">${time} <small>ваш запис</small>`));
+  assert.match((await browser().request(`/schedule/${ids.teacher}`)).text, /slot-taken/, 'гість теж бачить зайнятий час');
+  assert.ok(date);
   const taken = await other.request('/book', { method: 'POST', form: { slot: later } });
   assert.match(taken.location, /booking_taken/);
 

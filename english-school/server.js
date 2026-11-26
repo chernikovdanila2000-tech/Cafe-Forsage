@@ -232,7 +232,7 @@ app.get('/schedule/:id', (req, res) => {
   res.send(views.schedulePage(ctx(req), {
     teacher,
     hasSchedule: Object.keys(db.schedule.get(teacher.id)).length > 0,
-    freeSlots: slots.free(teacher.id),
+    freeSlots: slots.grid(teacher.id, user && user.id),
     student,
     canBook: student ? bookingInfo(user).canBook : 0,
     isMine: student && user.teacher_id === teacher.id,
@@ -343,7 +343,7 @@ function bookingInfo(user) {
   const upcoming = db.bookings.upcoming({ from: slots.now(), studentId: user.id }).map((b) => ({ ...b, canCancel: slots.canCancel(b) }));
   const canBook = Math.max(db.lessons.balance(user.id).left - upcoming.length, 0);
   const hasSchedule = user.teacher_id ? Object.keys(db.schedule.get(user.teacher_id)).length > 0 : false;
-  return { upcoming, canBook, hasSchedule, freeSlots: user.teacher_id ? slots.free(user.teacher_id) : [] };
+  return { upcoming, canBook, hasSchedule, freeSlots: user.teacher_id ? slots.grid(user.teacher_id, user.id) : [] };
 }
 
 const bookingLine = (b) => `${b.date.split('-').reverse().join('.')} о ${b.time}`;
