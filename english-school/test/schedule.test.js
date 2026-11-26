@@ -132,3 +132,44 @@ test('учень бачить вільні дні викладача в карт
   await register(fresh, 'Новий', 'fresh@test.ua');
   assert.match(plain((await fresh.request('/dashboard')).text), /Вільні дні: пн, вт, ср, чт, пт, сб, нд/);
 });
+
+test('кнопка «Вільний час»: сторінка для гостя, учня без оплати й запис до іншого викладача', async () => {
+  // Картка на головній із тим самим ім'ям — кнопка веде на сторінку графіка.
+  const fd = new FormData();
+  fd.append('name', 'Олександра');
+  fd.append('role', '2 роки досвіду · B2');
+  await fetch(`${site.base}/admin/teachers`, { method: 'POST', body: fd, headers: { cookie: [...admin.jar].map(([k, v]) => `${k}=${v}`).join('; ') }, redirect: 'manual' });
+  const home = (await browser().request('/')).text;
+  assert.match(home, new RegExp(`href="/schedule/${ids.teacher}"[^>]*>[\\s\\S]*?Вільний час`));
+
+  // Гість бачить години, але не кнопки запису.
+  const guest = (await browser().request(`/schedule/${ids.teacher}`)).text;
+  assert.match(plain(guest), /Вільний час і запис/);
+  assert.match(plain(guest), /увійдіть або створіть акаунт/);
+  assert.match(guest, /class="slot slot-view"/);
+  assert.equal(slotsOf(guest).length, 0);
+  assert.match(guest, new RegExp(`/register\\?next=%2Fschedule%2F${ids.teacher}`));
+
+  // Новий учень без викладача й без оплати: бачить кнопки оплати.
+  const nobody = browser();
+  await register(nobody, 'Тарас', 'taras@test.ua');
+  const unpaid = (await nobody.request(`/schedule/${ids.teacher}`)).text;
+  assert.match(plain(unpaid), /оплатіть разове заняття або абонемент/);
+  assert.match(unpaid, /href="\/pay\/monthly"/);
+  assert.equal(slotsOf(unpaid).length, 0);
+
+  // Після оплати записується прямо зі сторінки — і викладач стає його.
+  await pay(nobody, 'single');
+  const paid = (await nobody.request(`/schedule/${ids.teacher}`)).text;
+  assert.match(plain(paid), /після запису Олександра стане вашим викладачем/);
+  const slot = slotsOf(paid).at(-5);
+  const r = await nobody.request('/book', { method: 'POST', form: { slot, teacher_id: String(ids.teacher) } });
+  assert.equal(r.location, `/schedule/${ids.teacher}?msg=booked`);
+  const dash = plain((await nobody.request('/dashboard')).text);
+  assert.match(dash, /Ваш викладач Олександра/);
+  assert.match(dash, /Мої заняття/);
+
+  // Кнопка є й у картках вибору в кабінеті; неіснуючий викладач — 404.
+  assert.match((await nobody.request('/dashboard')).text, /href="\/schedule\/\d+"/);
+  assert.equal((await browser().request(`/schedule/${ids.student}`)).status, 404);
+});

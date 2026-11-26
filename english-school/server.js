@@ -208,8 +208,35 @@ app.get('/lang/:code', (req, res) => {
 
 // ---------- Публічні сторінки ----------
 
+// Картки викладачів на головній: до кожної — акаунт (якщо є) і чи заповнено графік, щоб показати кнопку «Вільний час».
+function teacherCards() {
+  const accounts = db.teachers.forChoice();
+  const norm = (x) => String(x || '').trim().toLowerCase();
+  return db.teachers.all().map((card) => {
+    const account = accounts.find((a) => a.id === card.user_id) || (!card.user_id && accounts.find((a) => norm(a.name) === norm(card.name)));
+    const hasSchedule = account ? Object.keys(db.schedule.get(account.id)).length > 0 : false;
+    return { ...card, accountId: hasSchedule ? account.id : null };
+  });
+}
+
 app.get('/', (req, res) => {
-  res.send(views.home(ctx(req), { teachers: db.teachers.all(), reviews: db.reviews.all() }));
+  res.send(views.home(ctx(req), { teachers: teacherCards(), reviews: db.reviews.all() }));
+});
+
+// Вільний час викладача: видно всім; записатися може учень з оплаченими заняттями.
+app.get('/schedule/:id', (req, res) => {
+  const teacher = db.teachers.forChoice().find((x) => x.id === Number(req.params.id));
+  if (!teacher) return notFound(req, res);
+  const user = req.user;
+  const student = user && !user.is_teacher && !user.is_admin;
+  res.send(views.schedulePage(ctx(req), {
+    teacher,
+    hasSchedule: Object.keys(db.schedule.get(teacher.id)).length > 0,
+    freeSlots: slots.free(teacher.id),
+    student,
+    canBook: student ? bookingInfo(user).canBook : 0,
+    isMine: student && user.teacher_id === teacher.id,
+  }));
 });
 
 app.post('/request', (req, res) => {
@@ -322,19 +349,25 @@ function bookingInfo(user) {
 const bookingLine = (b) => `${b.date.split('-').reverse().join('.')} о ${b.time}`;
 
 // Запис учня на вільний час свого викладача (потрібне оплачене заняття).
+// Можна записатися й до іншого викладача (зі сторінки «Вільний час») — тоді він стає викладачем учня.
 app.post('/book', requireUser, (req, res) => {
   const user = req.user;
-  if (user.is_teacher || user.is_admin || !user.teacher_id) return res.redirect('/dashboard');
+  if (user.is_teacher || user.is_admin) return res.redirect('/dashboard');
+  const teacherId = req.body.teacher_id ? teacherAccount(req.body.teacher_id) : user.teacher_id;
+  if (!teacherId) return res.redirect('/dashboard');
+  const fromSchedule = Boolean(req.body.teacher_id);
+  const back = (msg) => res.redirect(fromSchedule ? `/schedule/${teacherId}?msg=${msg}` : `/dashboard?msg=${msg}#book`);
   const [date, time] = String(req.body.slot || '').split('|');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '') || !slots.HOURS.includes(time)) return res.redirect('/dashboard');
-  if (bookingInfo(user).canBook <= 0) return res.redirect('/dashboard?msg=booking_no_lessons#book');
-  if (!slots.isFree(user.teacher_id, date, time)) return res.redirect('/dashboard?msg=booking_taken#book');
-  const id = db.bookings.create({ teacherId: user.teacher_id, studentId: user.id, date, time });
-  if (!id) return res.redirect('/dashboard?msg=booking_taken#book');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '') || !slots.HOURS.includes(time)) return back('booking_taken');
+  if (bookingInfo(user).canBook <= 0) return back('booking_no_lessons');
+  if (!slots.isFree(teacherId, date, time)) return back('booking_taken');
+  const id = db.bookings.create({ teacherId, studentId: user.id, date, time });
+  if (!id) return back('booking_taken');
+  if (teacherId !== user.teacher_id) db.users.assignTeacher(user.id, teacherId);
   const b = db.bookings.byId(id);
   notify.send(['📅 <b>Новий запис на заняття</b>', `${bookingLine(b)} · ${b.teacher_name}`, `Учень: ${b.student_name} · ${b.student_phone || b.student_email}`]
     .map((line, i) => (i ? line.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]) : line)));
-  res.redirect('/dashboard?msg=booked#book');
+  back('booked');
 });
 
 // Скасування: учень — не пізніше ніж за 24 год; викладач — свої записи; адміністратор — будь-які.

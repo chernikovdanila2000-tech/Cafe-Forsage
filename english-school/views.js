@@ -159,7 +159,7 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=11">
+<link rel="stylesheet" href="/styles.css?v=13">
 ${analytics(events)}
 </head>
 <body class="${h(bodyClass)}">
@@ -383,6 +383,7 @@ ${teachers.length ? `
           <h3>${h(teacher.name)}</h3>
           ${teacher.role ? `<p class="teacher-role">${h(teacher.role)}</p>` : ''}
           ${teacher.about ? `<p class="muted">${h(teacher.about)}</p>` : ''}
+          ${teacher.accountId ? `<a class="btn btn-small btn-ghost teacher-slots" href="/schedule/${teacher.accountId}">${icon.clock} ${T('schedule.button')}</a>` : ''}
         </article>`).join('')}
     </div>
   </div>
@@ -586,9 +587,12 @@ function dashboard(ctx, { balance, orders, teacher, teachers = [], upcoming = []
             ${tch.role ? `<p class="teacher-role">${h(tch.role)}</p>` : ''}
             ${tch.about ? `<p class="muted small">${h(tch.about)}</p>` : ''}
             ${tch.days && tch.days.length ? `<p class="choose-days">${h(T('choose.days', { days: tch.days.sort((a, b) => a - b).map((d) => weekdayName(d, lang, 'short')).join(', ') }))}</p>` : ''}
-            ${teacher && teacher.id === tch.id
-              ? `<span class="pill pill-paid">${T('choose.current')}</span>`
-              : `<button class="btn btn-small btn-dark" type="submit">${T('choose.button')}</button>`}
+            <div class="choose-actions">
+              ${tch.days && tch.days.length ? `<a class="btn btn-small btn-ghost" href="/schedule/${tch.id}">${icon.clock} ${T('schedule.button')}</a>` : ''}
+              ${teacher && teacher.id === tch.id
+                ? `<span class="pill pill-paid">${T('choose.current')}</span>`
+                : `<button class="btn btn-small btn-dark" type="submit">${T('choose.button')}</button>`}
+            </div>
           </form>`).join('')}
       </div>
     </details>` : ''}
@@ -1130,6 +1134,70 @@ function studentsList(students, lang) {
     </div>`;
 }
 
+// Сторінка «Вільний час» викладача.
+function schedulePage(ctx, { teacher, hasSchedule, freeSlots, student, canBook, isMine }) {
+  const { lang, user } = ctx;
+  const T = (key, vars) => t(lang, key, vars);
+  const { single, monthly } = config.products;
+  const next = encodeURIComponent(`/schedule/${teacher.id}`);
+  let note = '';
+  if (!user) {
+    note = `
+      <div class="booking-note">
+        <p>${T('schedule.loginFirst')}</p>
+        <div class="hero-actions"><a class="btn btn-dark btn-small" href="/register?next=${next}">${T('auth.toRegister')}</a><a class="btn btn-ghost btn-small" href="/login?next=${next}">${T('auth.toLogin')}</a></div>
+      </div>`;
+  } else if (student && canBook <= 0) {
+    note = `
+      <div class="booking-note">
+        <p>${T('schedule.payFirst')}</p>
+        <div class="hero-actions">
+          <a class="btn btn-ghost btn-small" href="/pay/single">${T('product.single')} · ${money(single.price, lang)}</a>
+          <a class="btn btn-dark btn-small" href="/pay/monthly">${T('product.monthly')} · ${money(monthly.price, lang)}</a>
+        </div>
+      </div>`;
+  } else if (student) {
+    note = `<p class="small"><b>${T('book.left', { n: canBook })}</b>${isMine ? '' : ` · ${h(T('schedule.willChoose', { name: teacher.name }))}`}</p>`;
+  }
+  const bookable = student && canBook > 0;
+  const body = `
+<section class="dash">
+  <div class="container container-narrow">
+    <a class="back-link" href="${user && !user.is_teacher && !user.is_admin ? '/dashboard' : '/#teachers'}">${icon.back} ${T(user ? 'account.back' : 'thanks.home')}</a>
+    <div class="panel teacher-card">
+      ${teacher.photo ? `<img class="avatar avatar-photo" src="${h(teacher.photo)}" alt="${h(teacher.name)}">` : `<div class="avatar">${h(teacher.name[0])}</div>`}
+      <div>
+        <span class="panel-label">${T('schedule.eyebrow')}</span>
+        <h1 class="teacher-card-name">${h(teacher.name)}</h1>
+        ${teacher.role ? `<span class="teacher-role">${h(teacher.role)}</span>` : ''}
+        ${teacher.about ? `<span class="muted small">${h(teacher.about)}</span>` : ''}
+      </div>
+    </div>
+    <div class="panel booking">
+      <h2 class="panel-title">${T('schedule.title')}</h2>
+      <p class="muted small">${T('book.lead')}</p>
+      ${note}
+      ${!hasSchedule ? `<p class="booking-note">${T('schedule.empty')}</p>`
+        : !freeSlots.length ? `<p class="booking-note">${T('book.noFree')}</p>`
+        : `
+        <form method="post" action="/book" class="slots">
+          <input type="hidden" name="teacher_id" value="${teacher.id}">
+          ${freeSlots.map((d) => `
+            <div class="slot-day">
+              <span class="slot-date">${h(capital(dayLabel(d.date, lang)))}</span>
+              <div class="slot-times">
+                ${d.times.map((time) => (bookable
+                  ? `<button class="slot" name="slot" value="${d.date}|${time}">${time}</button>`
+                  : `<span class="slot slot-view">${time}</span>`)).join('')}
+              </div>
+            </div>`).join('')}
+        </form>`}
+    </div>
+  </div>
+</section>`;
+  return layout(ctx, { title: `${T('schedule.title')} — ${teacher.name}`, body, bodyClass: 'page-app' });
+}
+
 function bookingsTable(list, lang, { showTeacher }) {
   const T = (key) => t(lang, key);
   return `
@@ -1222,6 +1290,6 @@ function adminSchedule(ctx, { upcoming, teachers, counts }) {
 module.exports = {
   home, thanks, authPage, forgot, dashboard, checkout, account, legalPage, notFound, adminOnly,
   adminOverview, adminRequests, adminOrders, adminStudents, adminTeachers, adminReviews, adminSettings,
-  teacherHome, adminSchedule,
+  teacherHome, adminSchedule, schedulePage,
   LEVEL_CODES, productName,
 };
