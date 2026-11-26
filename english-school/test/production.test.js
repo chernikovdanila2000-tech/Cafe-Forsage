@@ -57,7 +57,7 @@ test('без способу оплати: замовлення приймаєт�
 test('оплата за реквізитами та за посиланням', async () => {
   const admin = browser();
   await admin.request('/login', { method: 'POST', form: ADMIN });
-  const base = { lessonPrice: '400', packageLessons: '8', packageLessonPrice: '350' };
+  const base = { lessonPrice: '350', packageLessons: '8', packagePrice: '2550' };
   await admin.request('/admin/settings', { method: 'POST', form: { ...base, paymentDetails: 'IBAN UA12 3456\nФОП Тест' } });
 
   const b = browser();
@@ -72,7 +72,7 @@ test('оплата за реквізитами та за посиланням', 
     form: { ...base, paymentDetails: 'IBAN UA12 3456', paymentUrl: 'https://pay.example.com/i?order={payment}&sum={amount}' },
   });
   const redirect = await b.request('/pay/single');
-  assert.match(redirect.location, /^https:\/\/pay\.example\.com\/i\?order=\d+&sum=400$/);
+  assert.match(redirect.location, /^https:\/\/pay\.example\.com\/i\?order=\d+&sum=350$/);
 });
 
 test('у робочому режимі адмін бачить чекліст без попередження про базу', async () => {
@@ -95,7 +95,7 @@ test('Telegram: токен і підключення однією кнопкою
   assert.equal(bad.status, 400);
 
   const ok = await admin.request('/admin/telegram/connect', {
-    method: 'POST', form: { lessonPrice: '400', packageLessons: '8', packageLessonPrice: '350', tgBotToken: ' 123456:ABCDEFGHIJKLMNOPQRSTUVWXYZ_abc ' },
+    method: 'POST', form: { lessonPrice: '350', packageLessons: '8', packagePrice: '2550', tgBotToken: ' 123456:ABCDEFGHIJKLMNOPQRSTUVWXYZ_abc ' },
   });
   assert.match(plain(ok.text), /Готово! Перевірте Telegram/);
   assert.ok(site.telegram.messages.some((m) => m.includes('Сповіщення Inkwell Academy підключено')));

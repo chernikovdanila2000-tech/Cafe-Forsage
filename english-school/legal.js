@@ -9,8 +9,8 @@ const config = require('./config');
 const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 const h = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ESC[c]);
 const fill = (value, hint) => (value ? h(value) : `<mark class="fill">[${h(hint)}]</mark>`);
-const uah = (amount) => `${Number(amount).toLocaleString('uk-UA', { maximumFractionDigits: 0 })} грн`;
-const UAH = (amount) => `UAH ${Number(amount).toLocaleString('en-GB', { maximumFractionDigits: 0 })}`;
+const uah = (amount) => `${Number(amount).toLocaleString('uk-UA', { maximumFractionDigits: 2 })} грн`;
+const UAH = (amount) => `UAH ${Number(amount).toLocaleString('en-GB', { maximumFractionDigits: 2 })}`;
 
 // Хто надає послуги: ФОП із налаштувань, а поки його немає — школа під своїм брендом.
 function provider(lang = 'uk') {
@@ -71,7 +71,7 @@ function offerUk() {
 <p>4.1. Вартість послуг на дату цієї редакції:</p>
 <ul>
   <li>Разове заняття (${min} хв) — <b>${uah(single.price)}</b>;</li>
-  <li>Абонемент (${monthly.lessons} занять по ${min} хв) — <b>${uah(monthly.price)}</b>, тобто ${uah(monthly.each)} за одне Заняття замість ${uah(single.price)} (вартість ${monthly.lessons} разових занять — ${uah(monthly.fullPrice)}).</li>
+  <li>Абонемент (${monthly.lessons} занять по ${min} хв) — <b>${uah(monthly.price)}</b> замість ${uah(monthly.fullPrice)} за ${monthly.lessons} разових занять по ${uah(single.price)}.</li>
 </ul>
 <p>4.2. Актуальні ціни зазначені на Сайті. Виконавець може змінювати ціни; зміна не стосується вже оплачених Занять.</p>
 <p>4.3. Оплата здійснюється в гривнях, на умовах 100% передоплати — через платіжний сервіс на Сайті або переказом за реквізитами, які Замовник бачить на сторінці оплати чи отримує від Виконавця. Обов'язок Замовника з оплати виконано з моменту зарахування коштів Виконавцю.</p>
@@ -200,7 +200,7 @@ function offerEn() {
 <p>4.1. Prices as of the date of this version:</p>
 <ul>
   <li>Single lesson (${min} min) — <b>${UAH(single.price)}</b>;</li>
-  <li>Package (${monthly.lessons} lessons of ${min} min) — <b>${UAH(monthly.price)}</b>, i.e. ${UAH(monthly.each)} per Lesson instead of ${UAH(single.price)} (${monthly.lessons} single lessons cost ${UAH(monthly.fullPrice)}).</li>
+  <li>Package (${monthly.lessons} lessons of ${min} min) — <b>${UAH(monthly.price)}</b> instead of ${UAH(monthly.fullPrice)} for ${monthly.lessons} single lessons at ${UAH(single.price)}.</li>
 </ul>
 <p>4.2. Current prices are shown on the Website. The Provider may change prices; changes do not apply to Lessons already paid for.</p>
 <p>4.3. Payment is made in Ukrainian hryvnias, 100% in advance — via the payment service on the Website or by bank transfer using the details shown on the payment page or sent by the Provider. The Customer's payment obligation is fulfilled when the funds are received by the Provider.</p>

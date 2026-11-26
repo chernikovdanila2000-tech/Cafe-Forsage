@@ -37,6 +37,10 @@ db.sessions.cleanup();
     if (saved.lessonPrice === '450') update.lessonPrice = '400';
     db.settings.save(update);
   }
+  // Нові ціни: заняття 350 ₴, абонемент — 8 занять за 2 550 ₴.
+  if (!saved['migration.prices-350']) {
+    db.settings.save({ 'migration.prices-350': '1', lessonPrice: '350', packagePrice: '2550', packageLessons: '8' });
+  }
   // Картка викладачки: ім'я без прізвища (збігається з акаунтом — фото підтягується) і текст українською.
   if (!saved['migration.teacher-card-uk']) {
     db.db.prepare("UPDATE teachers SET name = 'Олександра', role = '2 роки досвіду · B2', about = 'Працюю лише з дітьми.' WHERE name = 'Олександра Ленгер'").run();
@@ -732,7 +736,7 @@ const SETTINGS_RULES = {
   email: (v) => !v || isEmail(v),
   lessonPrice: (v) => /^\d{1,6}$/.test(v) && Number(v) > 0,
   packageLessons: (v) => /^\d{1,2}$/.test(v) && Number(v) >= 2 && Number(v) <= 50,
-  packageLessonPrice: (v) => /^\d{1,6}$/.test(v) && Number(v) > 0,
+  packagePrice: (v) => /^\d{1,7}$/.test(v) && Number(v) > 0,
   paymentUrl: (v) => !v || /^https:\/\/\S+$/i.test(v),
   siteUrl: (v) => !v || /^https?:\/\/[^\s/]+\.[^\s/]+$/i.test(v),
   metaPixelId: (v) => !v || /^\d{6,20}$/.test(v),

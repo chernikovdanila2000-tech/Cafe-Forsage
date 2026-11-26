@@ -10,9 +10,9 @@ const EDITABLE = {
   email: ['SCHOOL_EMAIL', 'inkwellschool2@gmail.com'],
   telegram: ['SCHOOL_TELEGRAM', '@Inkwell_sch'],
   instagram: ['SCHOOL_INSTAGRAM', ''],
-  lessonPrice: ['LESSON_PRICE', '400'],
+  lessonPrice: ['LESSON_PRICE', '350'],
   packageLessons: ['SUBSCRIPTION_LESSONS', '8'],
-  packageLessonPrice: ['SUBSCRIPTION_LESSON_PRICE', '350'],
+  packagePrice: ['SUBSCRIPTION_PRICE', '2550'],
   paymentUrl: ['PAYMENT_URL', ''],
   paymentDetails: ['PAYMENT_DETAILS', ''],
   legalSeller: ['LEGAL_SELLER', ''],
@@ -71,21 +71,21 @@ const config = {
 
   get lessonPrice() { return number('lessonPrice', 1, 100000); },
 
-  // Разове заняття та абонемент на місяць: у абонементі кожне заняття дешевше (350 ₴ замість 400 ₴).
+  // Разове заняття та абонемент на місяць: 8 занять за 2 550 ₴ замість 8 × 350 = 2 800 ₴.
   get products() {
     const price = this.lessonPrice;
     const lessons = number('packageLessons', 2, 50);
-    const each = number('packageLessonPrice', 1, 100000);
+    const total = number('packagePrice', 1, 1000000);
     const fullPrice = lessons * price;
     return {
       single: { id: 'single', lessons: 1, price },
       monthly: {
         id: 'monthly',
         lessons,
-        each,
+        each: Math.round((total / lessons) * 100) / 100, // ціна одного заняття в абонементі (для повернення коштів)
         fullPrice,
-        price: lessons * each,
-        save: Math.max(fullPrice - lessons * each, 0),
+        price: total,
+        save: Math.max(fullPrice - total, 0),
       },
     };
   },

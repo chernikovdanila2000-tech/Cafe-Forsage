@@ -41,7 +41,7 @@ before(async () => {
     ids[key] = Number(page.match(new RegExp(`${email.replace('.', '\\.')}[\\s\\S]*?/admin/users/(\\d+)/(?:teacher|role)`))[1]);
   }
   await admin.request(`/admin/users/${ids.teacher}/role`, { method: 'POST', form: { teacher: '1' } });
-  await admin.request('/admin/settings', { method: 'POST', form: { lessonPrice: '400', packageLessons: '8', packageLessonPrice: '350', tgBotToken: '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZ_abc' } });
+  await admin.request('/admin/settings', { method: 'POST', form: { lessonPrice: '350', packageLessons: '8', packagePrice: '2550', tgBotToken: '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZ_abc' } });
   await admin.request('/admin/telegram/connect', { method: 'POST' });
 });
 

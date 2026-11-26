@@ -244,7 +244,7 @@ function home(ctx, { teachers, reviews }) {
       </div>
       <ul class="hero-points">
         <li>${icon.check} ${T('hero.point1')}</li>
-        <li>${icon.check} ${T('hero.point2', { each: money(monthly.each, lang) })}</li>
+        <li>${icon.check} ${T('hero.point2', { n: monthly.lessons, pkg: money(monthly.price, lang) })}</li>
         <li>${icon.check} ${T('hero.point3')}</li>
       </ul>
     </div>
@@ -274,7 +274,7 @@ function home(ctx, { teachers, reviews }) {
     <div><b>1:1</b><span>${T('stats.format')}</span></div>
     <div><b>${config.lessonDuration}</b><span>${T('stats.minutes')}</span></div>
     <div><b>${price}</b><span>${T('stats.price')}</span></div>
-    <div><b>${money(monthly.each, lang)}</b><span>${T('stats.discount')}</span></div>
+    <div><b>${money(monthly.price, lang)}</b><span>${T('stats.discount', { n: monthly.lessons })}</span></div>
   </div>
 </section>
 
@@ -356,7 +356,7 @@ function home(ctx, { teachers, reviews }) {
         <p class="price">${money(monthly.price, lang)}<small> ${T('pricing.monthly.per', { n: monthly.lessons })}</small></p>
         <ul>
           <li>${icon.check} ${T('pricing.monthly.f1', { n: monthly.lessons })}</li>
-          <li>${icon.check} ${T('pricing.monthly.f2', { each: money(monthly.each, lang), single: price })}</li>
+          <li>${icon.check} ${T('pricing.monthly.f2', { n: monthly.lessons, full: money(monthly.fullPrice, lang) })}</li>
           ${monthly.save ? `<li>${icon.check} ${T('pricing.monthly.f3', { save: money(monthly.fullPrice - monthly.price, lang) })}</li>` : ''}
           <li>${icon.check} ${T('pricing.monthly.f4')}</li>
         </ul>
@@ -1068,7 +1068,7 @@ function adminSettings(ctx, { values, counts, notice, error }) {
         <div class="form form-3">
           ${field('lessonPrice', { type: 'number' })}
           ${field('packageLessons', { type: 'number' })}
-          ${field('packageLessonPrice', { type: 'number' })}
+          ${field('packagePrice', { type: 'number' })}
         </div>
         <p class="muted small">${T('admin.settings.pricePreview', { single: money(single.price, lang), pkg: money(monthly.price, lang), full: money(monthly.fullPrice, lang), each: money(monthly.each, lang), n: monthly.lessons })}</p>
       </div>

@@ -85,7 +85,7 @@ test('адмін робить викладачами; учень бачить ї
 });
 
 test('учень обирає викладача й може змінити; Telegram отримує сповіщення', async () => {
-  await admin.request('/admin/settings', { method: 'POST', form: { lessonPrice: '400', packageLessons: '8', packageLessonPrice: '350', tgBotToken: '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZ_abc' } });
+  await admin.request('/admin/settings', { method: 'POST', form: { lessonPrice: '350', packageLessons: '8', packagePrice: '2550', tgBotToken: '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZ_abc' } });
   await admin.request('/admin/telegram/connect', { method: 'POST' });
   site.telegram.messages.length = 0;
 
