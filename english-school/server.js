@@ -23,6 +23,7 @@ const db = require('./db');
 const views = require('./views');
 const legal = require('./legal');
 const notify = require('./notify');
+const slots = require('./slots');
 const { t, LANGS, DEFAULT_LANG } = require('./i18n');
 
 db.ensureAdmin();
@@ -35,6 +36,11 @@ db.sessions.cleanup();
     const update = { 'migration.prices-2026-11': '1' };
     if (saved.lessonPrice === '450') update.lessonPrice = '400';
     db.settings.save(update);
+  }
+  // Картка викладачки: ім'я без прізвища (збігається з акаунтом — фото підтягується) і текст українською.
+  if (!saved['migration.teacher-card-uk']) {
+    db.db.prepare("UPDATE teachers SET name = 'Олександра', role = '2 роки досвіду · B2', about = 'Працюю лише з дітьми.' WHERE name = 'Олександра Ленгер'").run();
+    db.settings.save({ 'migration.teacher-card-uk': '1' });
   }
 }
 
@@ -300,8 +306,52 @@ app.get('/dashboard', requireUser, (req, res) => {
     balance: db.lessons.balance(req.user.id),
     orders: db.orders.forUser(req.user.id),
     teacher: req.user.teacher_id ? db.teachers.forChoice().find((x) => x.id === req.user.teacher_id) || db.users.byId(req.user.teacher_id) : null,
-    teachers: db.teachers.forChoice(),
+    teachers: db.teachers.forChoice().map((x) => ({ ...x, days: Object.keys(db.schedule.get(x.id)).map(Number) })),
+    ...bookingInfo(req.user),
   }));
+});
+
+// Що потрібно кабінету учня для запису: його майбутні заняття, вільний час викладача й скільки ще можна записатися.
+function bookingInfo(user) {
+  const upcoming = db.bookings.upcoming({ from: slots.now(), studentId: user.id }).map((b) => ({ ...b, canCancel: slots.canCancel(b) }));
+  const canBook = Math.max(db.lessons.balance(user.id).left - upcoming.length, 0);
+  const hasSchedule = user.teacher_id ? Object.keys(db.schedule.get(user.teacher_id)).length > 0 : false;
+  return { upcoming, canBook, hasSchedule, freeSlots: user.teacher_id ? slots.free(user.teacher_id) : [] };
+}
+
+const bookingLine = (b) => `${b.date.split('-').reverse().join('.')} о ${b.time}`;
+
+// Запис учня на вільний час свого викладача (потрібне оплачене заняття).
+app.post('/book', requireUser, (req, res) => {
+  const user = req.user;
+  if (user.is_teacher || user.is_admin || !user.teacher_id) return res.redirect('/dashboard');
+  const [date, time] = String(req.body.slot || '').split('|');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '') || !slots.HOURS.includes(time)) return res.redirect('/dashboard');
+  if (bookingInfo(user).canBook <= 0) return res.redirect('/dashboard?msg=booking_no_lessons#book');
+  if (!slots.isFree(user.teacher_id, date, time)) return res.redirect('/dashboard?msg=booking_taken#book');
+  const id = db.bookings.create({ teacherId: user.teacher_id, studentId: user.id, date, time });
+  if (!id) return res.redirect('/dashboard?msg=booking_taken#book');
+  const b = db.bookings.byId(id);
+  notify.send(['📅 <b>Новий запис на заняття</b>', `${bookingLine(b)} · ${b.teacher_name}`, `Учень: ${b.student_name} · ${b.student_phone || b.student_email}`]
+    .map((line, i) => (i ? line.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]) : line)));
+  res.redirect('/dashboard?msg=booked#book');
+});
+
+// Скасування: учень — не пізніше ніж за 24 год; викладач — свої записи; адміністратор — будь-які.
+app.post('/bookings/:id/cancel', requireUser, (req, res) => {
+  const user = req.user;
+  const b = db.bookings.byId(Number(req.params.id));
+  const back = user.is_admin ? '/admin/schedule' : user.is_teacher ? '/teacher' : '/dashboard';
+  if (!b || b.status !== 'booked') return res.redirect(back);
+  const own = b.student_id === user.id;
+  const teacherOwn = user.is_teacher && b.teacher_id === user.id;
+  if (!user.is_admin && !own && !teacherOwn) return notFound(req, res);
+  if (own && !user.is_admin && !slots.canCancel(b)) return res.redirect('/dashboard?msg=booking_too_late#book');
+  db.bookings.cancel(b.id);
+  const who = own ? 'учень' : teacherOwn ? 'викладач' : 'адміністратор';
+  notify.send(['❌ <b>Запис скасовано</b>', `${bookingLine(b)} · ${b.teacher_name}`, `Учень: ${b.student_name} · ${b.student_phone || b.student_email}`, `Скасував: ${who}`]
+    .map((line, i) => (i ? line.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]) : line)));
+  res.redirect(`${back}?msg=${user.is_admin ? 'admin.bookingCancelled' : user.is_teacher ? 'teacher.bookingCancelled' : 'booking_cancelled'}`);
 });
 
 // Учень сам обирає викладача — після цього викладач бачить його у своєму кабінеті.
@@ -328,7 +378,24 @@ function requireTeacher(req, res, next) {
 }
 
 app.get('/teacher', requireUser, requireTeacher, (req, res) => {
-  res.send(views.teacherHome(ctx(req), { students: db.users.studentsOf(req.user.id) }));
+  res.send(views.teacherHome(ctx(req), {
+    students: db.users.studentsOf(req.user.id),
+    upcoming: db.bookings.upcoming({ from: slots.now(), teacherId: req.user.id }),
+    availability: db.schedule.get(req.user.id),
+    hours: slots.HOURS,
+  }));
+});
+
+// Графік викладача: поля d1…d7 з позначеними годинами.
+app.post('/teacher/schedule', requireUser, requireTeacher, (req, res) => {
+  const result = {};
+  for (let day = 1; day <= 7; day++) {
+    const raw = req.body[`d${day}`];
+    const times = (Array.isArray(raw) ? raw : raw ? [raw] : []).filter((x) => slots.HOURS.includes(x));
+    if (times.length) result[day] = [...new Set(times)];
+  }
+  db.schedule.set(req.user.id, result);
+  res.redirect('/teacher?msg=teacher.scheduleSaved#schedule');
 });
 
 app.post('/teacher/students/:id/held', requireUser, requireTeacher, (req, res) => {
@@ -500,6 +567,14 @@ admin.post('/users/:id/role', (req, res) => {
 });
 
 admin.get('/students', (req, res) => renderStudents(req, res));
+
+admin.get('/schedule', (req, res) => {
+  res.send(views.adminSchedule(ctx(req), {
+    upcoming: db.bookings.upcoming({ from: slots.now() }),
+    teachers: db.users.teachers().map((x) => ({ ...x, availability: db.schedule.get(x.id) })),
+    counts: adminCounts(),
+  }));
+});
 
 admin.post('/users/:id/held', (req, res) => {
   db.lessons.markHeld(Number(req.params.id));

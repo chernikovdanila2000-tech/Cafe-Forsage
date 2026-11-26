@@ -23,10 +23,17 @@ const LEVEL_CODES = ['unknown', 'A1', 'A2', 'B1', 'B2', 'C1'];
 const MESSAGE_TYPES = {
   registered: 'success', loggedout: 'info', login_required: 'info', profile_saved: 'success',
   password_changed: 'success', paid: 'success', payment_pending: 'success', too_many: 'error', teacher_chosen: 'success',
+  booked: 'success', booking_cancelled: 'info', booking_taken: 'error', booking_no_lessons: 'error', booking_too_late: 'error',
+  'teacher.scheduleSaved': 'success', 'teacher.bookingCancelled': 'info', 'admin.bookingCancelled': 'info',
   'admin.saved': 'success', 'admin.deleted': 'info', 'admin.held': 'success', 'admin.undone': 'info',
   'admin.confirmed': 'success', 'admin.cancelled': 'info', 'admin.settings.tgTestSent': 'success',
   'admin.teacherAssigned': 'success', 'admin.roleSaved': 'success', 'teacher.held': 'success',
 };
+
+// Дати графіка: «пт, 27 лист.» і назви днів тижня (1 — понеділок).
+const dayLabel = (date, lang) => new Date(`${date}T12:00:00Z`).toLocaleDateString(LOCALES[lang], { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+const weekdayName = (n, lang, style = 'long') => new Date(Date.UTC(2024, 0, n, 12)).toLocaleDateString(LOCALES[lang], { weekday: style, timeZone: 'UTC' });
+const capital = (text) => text.charAt(0).toUpperCase() + text.slice(1);
 
 const levelLabel = (code, lang) => t(lang, `level.${LEVEL_CODES.includes(code) ? code : 'unknown'}`);
 
@@ -152,7 +159,7 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=10">
+<link rel="stylesheet" href="/styles.css?v=11">
 ${analytics(events)}
 </head>
 <body class="${h(bodyClass)}">
@@ -498,7 +505,7 @@ function forgot(ctx) {
 
 // ---------- Особистий кабінет ----------
 
-function dashboard(ctx, { balance, orders, teacher, teachers = [] }) {
+function dashboard(ctx, { balance, orders, teacher, teachers = [], upcoming = [], canBook = 0, hasSchedule = false, freeSlots = [] }) {
   const { lang, user, msg } = ctx;
   const T = (key, vars) => t(lang, key, vars);
   const { single, monthly } = config.products;
@@ -534,6 +541,38 @@ function dashboard(ctx, { balance, orders, teacher, teachers = [] }) {
       </div>
     </div>` : ''}
 
+    ${teacher ? `
+    <div class="panel booking" id="book">
+      <h2 class="panel-title">${T('book.title')}</h2>
+      <p class="muted small">${T('book.lead')}</p>
+      ${upcoming.length ? `
+        <div class="booking-mine">
+          <span class="panel-label">${T('book.mine')}</span>
+          ${upcoming.map((b) => `
+            <div class="booking-row">
+              <b>${h(capital(dayLabel(b.date, lang)))} · ${h(b.time)}</b>
+              <span class="muted small">${h(b.teacher_name)}</span>
+              ${b.canCancel
+                ? `<form method="post" action="/bookings/${b.id}/cancel" data-confirm="${h(T('book.confirmCancel'))}"><button class="btn btn-small btn-ghost">${T('book.cancel')}</button></form>`
+                : `<span class="muted small">${T('book.cancelLate')}</span>`}
+            </div>`).join('')}
+        </div>` : ''}
+      ${!hasSchedule ? `<p class="booking-note">${T('book.noSchedule')}</p>`
+        : canBook <= 0 ? `<p class="booking-note">${T('book.payFirst')}</p>`
+        : !freeSlots.length ? `<p class="booking-note">${T('book.noFree')}</p>`
+        : `
+        <p class="small"><b>${T('book.left', { n: canBook })}</b></p>
+        <form method="post" action="/book" class="slots">
+          ${freeSlots.map((d) => `
+            <div class="slot-day">
+              <span class="slot-date">${h(capital(dayLabel(d.date, lang)))}</span>
+              <div class="slot-times">
+                ${d.times.map((time) => `<button class="slot" name="slot" value="${d.date}|${time}">${time}</button>`).join('')}
+              </div>
+            </div>`).join('')}
+        </form>`}
+    </div>` : ''}
+
     ${teachers.length ? `
     <details class="choose-teacher"${teacher ? '' : ' open'}>
       <summary>${T(teacher ? 'choose.change' : 'choose.title')}</summary>
@@ -546,6 +585,7 @@ function dashboard(ctx, { balance, orders, teacher, teachers = [] }) {
             <h3>${h(tch.name)}</h3>
             ${tch.role ? `<p class="teacher-role">${h(tch.role)}</p>` : ''}
             ${tch.about ? `<p class="muted small">${h(tch.about)}</p>` : ''}
+            ${tch.days && tch.days.length ? `<p class="choose-days">${h(T('choose.days', { days: tch.days.sort((a, b) => a - b).map((d) => weekdayName(d, lang, 'short')).join(', ') }))}</p>` : ''}
             ${teacher && teacher.id === tch.id
               ? `<span class="pill pill-paid">${T('choose.current')}</span>`
               : `<button class="btn btn-small btn-dark" type="submit">${T('choose.button')}</button>`}
@@ -738,7 +778,7 @@ function notFound(ctx) {
 
 // ---------- Адмін-панель ----------
 
-const ADMIN_SECTIONS = ['overview', 'requests', 'students', 'orders', 'teachers', 'reviews', 'settings'];
+const ADMIN_SECTIONS = ['overview', 'requests', 'students', 'schedule', 'orders', 'teachers', 'reviews', 'settings'];
 
 function adminLayout(ctx, active, { title, content, counts = {}, notice, error }) {
   const T = (key, vars) => t(ctx.lang, key, vars);
@@ -1090,7 +1130,42 @@ function studentsList(students, lang) {
     </div>`;
 }
 
-function teacherHome(ctx, { students }) {
+function bookingsTable(list, lang, { showTeacher }) {
+  const T = (key) => t(lang, key);
+  return `
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>${T('admin.col.when')}</th><th>${T('admin.col.student')}</th><th>${T('admin.col.phone')}</th>${showTeacher ? `<th>${T('admin.col.teacher')}</th>` : ''}<th></th></tr></thead>
+        <tbody>
+          ${list.map((b) => `
+          <tr>
+            <td class="nowrap"><b>${h(capital(dayLabel(b.date, lang)))}</b> · ${h(b.time)}</td>
+            <td>${h(b.student_name)}<br><span class="muted small">${h(b.student_email)}</span></td>
+            <td class="nowrap">${tel(b.student_phone)}</td>
+            ${showTeacher ? `<td>${h(b.teacher_name)}</td>` : ''}
+            <td class="actions"><form method="post" action="/bookings/${b.id}/cancel" data-confirm="${h(T('book.confirmCancel'))}"><button class="btn btn-small btn-ghost">${T('book.cancel')}</button></form></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function scheduleEditor(availability, hours, lang) {
+  const T = (key) => t(lang, key);
+  return `
+    <form method="post" action="/teacher/schedule" class="schedule">
+      ${[1, 2, 3, 4, 5, 6, 7].map((day) => `
+        <div class="schedule-day">
+          <span class="schedule-name">${h(capital(weekdayName(day, lang)))}</span>
+          <div class="slot-times">
+            ${hours.map((time) => `<label class="slot slot-check"><input type="checkbox" name="d${day}" value="${time}"${(availability[day] || []).includes(time) ? ' checked' : ''}><span>${time}</span></label>`).join('')}
+          </div>
+        </div>`).join('')}
+      <div class="settings-actions"><button class="btn btn-dark" type="submit">${T('teacher.saveSchedule')}</button></div>
+    </form>`;
+}
+
+function teacherHome(ctx, { students, upcoming = [], availability = {}, hours = [] }) {
   const { lang } = ctx;
   const T = (key) => t(lang, key);
   const body = `
@@ -1103,16 +1178,50 @@ function teacherHome(ctx, { students }) {
       </div>
       <form method="post" action="/logout"><button class="btn btn-ghost btn-small" type="submit">${T('dash.logout')}</button></form>
     </div>
+
+    <h2 class="dash-title">${T('teacher.upcoming')}</h2>
+    ${upcoming.length ? bookingsTable(upcoming, lang, { showTeacher: false }) : `<p class="muted">${T('teacher.noUpcoming')}</p>`}
+
+    <h2 class="dash-title">${T('teacher.students')}</h2>
     <p class="admin-hint">${T('teacher.hint')}</p>
     ${students.length ? studentsList(students, lang) : `<div class="panel"><p class="muted">${T('teacher.none')}</p></div>`}
+
+    <h2 class="dash-title" id="schedule">${T('teacher.schedule')}</h2>
+    <p class="admin-hint">${T('teacher.scheduleHint')}</p>
+    ${scheduleEditor(availability, hours, lang)}
   </div>
 </section>`;
   return layout(ctx, { title: T('teacher.title'), body, bodyClass: 'page-app', noindex: true });
 }
 
+function adminSchedule(ctx, { upcoming, teachers, counts }) {
+  const { lang } = ctx;
+  const T = (key) => t(lang, key);
+  const content = `
+    <p class="admin-hint">${T('admin.schedule.hint')}</p>
+    ${upcoming.length ? bookingsTable(upcoming, lang, { showTeacher: true }) : `<p class="muted">${T('admin.none')}</p>`}
+    <h2 class="dash-title">${T('admin.schedule.teachers')}</h2>
+    ${teachers.length ? `
+    <div class="table-wrap">
+      <table class="table">
+        <tbody>
+          ${teachers.map((tch) => {
+            const days = Object.keys(tch.availability).map(Number).sort((a, b) => a - b);
+            return `
+          <tr>
+            <td><b>${h(tch.name)}</b><br><span class="muted small">${h(tch.email)}</span></td>
+            <td>${days.length ? days.map((d) => `<b>${h(weekdayName(d, lang, 'short'))}</b> ${h(tch.availability[d].join(', '))}`).join('<br>') : `<span class="muted">${T('admin.schedule.empty')}</span>`}</td>
+          </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>` : `<p class="muted">${T('admin.none')}</p>`}`;
+  return adminLayout(ctx, 'schedule', { title: T('admin.schedule.title'), content, counts });
+}
+
 module.exports = {
   home, thanks, authPage, forgot, dashboard, checkout, account, legalPage, notFound, adminOnly,
   adminOverview, adminRequests, adminOrders, adminStudents, adminTeachers, adminReviews, adminSettings,
-  teacherHome,
+  teacherHome, adminSchedule,
   LEVEL_CODES, productName,
 };

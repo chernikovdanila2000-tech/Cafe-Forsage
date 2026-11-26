@@ -111,6 +111,28 @@ addColumn('teachers', 'user_id', 'INTEGER');
 // Таблиці чату більше не потрібні.
 db.exec('DROP TABLE IF EXISTS chat_reads; DROP TABLE IF EXISTS messages;');
 
+// Графік викладача (щотижневі вільні години) і записи учнів на конкретну дату й час.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS availability (
+    teacher_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    weekday    INTEGER NOT NULL,
+    time       TEXT NOT NULL,
+    PRIMARY KEY (teacher_id, weekday, time)
+  );
+
+  CREATE TABLE IF NOT EXISTS bookings (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    teacher_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    student_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    date       TEXT NOT NULL,
+    time       TEXT NOT NULL,
+    status     TEXT NOT NULL DEFAULT 'booked',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  -- Один і той самий час викладача не можна зайняти двічі.
+  CREATE UNIQUE INDEX IF NOT EXISTS bookings_slot ON bookings (teacher_id, date, time) WHERE status = 'booked';
+`);
+
 
 // ---------- Пароли ----------
 
@@ -339,6 +361,64 @@ const teachers = {
   },
 };
 
+// ---------- Графік і записи ----------
+
+const schedule = {
+  // { 1: ['10:00', '11:00'], ... } — дні тижня 1 (пн) … 7 (нд).
+  get(teacherId) {
+    const result = {};
+    for (const row of db.prepare('SELECT weekday, time FROM availability WHERE teacher_id = ? ORDER BY weekday, time').all(teacherId)) {
+      (result[row.weekday] ||= []).push(row.time);
+    }
+    return result;
+  },
+  set(teacherId, slots) {
+    db.exec('BEGIN');
+    try {
+      db.prepare('DELETE FROM availability WHERE teacher_id = ?').run(teacherId);
+      const insert = db.prepare('INSERT OR IGNORE INTO availability (teacher_id, weekday, time) VALUES (?, ?, ?)');
+      for (const [weekday, times] of Object.entries(slots)) for (const time of times) insert.run(teacherId, Number(weekday), time);
+      db.exec('COMMIT');
+    } catch (err) {
+      db.exec('ROLLBACK');
+      throw err;
+    }
+  },
+};
+
+const BOOKING_FIELDS = `b.*, s.name AS student_name, s.phone AS student_phone, s.email AS student_email, t.name AS teacher_name`;
+const BOOKING_JOIN = 'FROM bookings b JOIN users s ON s.id = b.student_id JOIN users t ON t.id = b.teacher_id';
+
+const bookings = {
+  // Повертає id запису або null, якщо цей час уже зайняли.
+  create({ teacherId, studentId, date, time }) {
+    try {
+      return Number(db.prepare('INSERT INTO bookings (teacher_id, student_id, date, time) VALUES (?, ?, ?, ?)').run(teacherId, studentId, date, time).lastInsertRowid);
+    } catch (err) {
+      if (/UNIQUE/.test(err.message)) return null;
+      throw err;
+    }
+  },
+  byId(id) {
+    return db.prepare(`SELECT ${BOOKING_FIELDS} ${BOOKING_JOIN} WHERE b.id = ?`).get(id);
+  },
+  cancel(id) {
+    return db.prepare("UPDATE bookings SET status = 'cancelled' WHERE id = ? AND status = 'booked'").run(id).changes > 0;
+  },
+  // Майбутні записи (from — «YYYY-MM-DD HH:MM» за Києвом).
+  upcoming({ from, teacherId, studentId } = {}) {
+    const where = ["b.status = 'booked'", "(b.date || ' ' || b.time) >= :from"];
+    const params = { from };
+    if (teacherId) { where.push('b.teacher_id = :teacherId'); params.teacherId = teacherId; }
+    if (studentId) { where.push('b.student_id = :studentId'); params.studentId = studentId; }
+    return db.prepare(`SELECT ${BOOKING_FIELDS} ${BOOKING_JOIN} WHERE ${where.join(' AND ')} ORDER BY b.date, b.time`).all(params);
+  },
+  taken(teacherId, fromDate, toDate) {
+    return new Set(db.prepare("SELECT date || ' ' || time AS slot FROM bookings WHERE teacher_id = ? AND status = 'booked' AND date BETWEEN ? AND ?")
+      .all(teacherId, fromDate, toDate).map((r) => r.slot));
+  },
+};
+
 const reviews = {
   all() {
     return db.prepare('SELECT * FROM reviews ORDER BY id DESC').all();
@@ -379,4 +459,4 @@ function ensureAdmin() {
   }
 }
 
-module.exports = { UPLOADS_DIR, storageWarning, onRailway, db, users, sessions, orders, lessons, requests, settings, teachers, reviews, ping, ensureAdmin };
+module.exports = { schedule, bookings, UPLOADS_DIR, storageWarning, onRailway, db, users, sessions, orders, lessons, requests, settings, teachers, reviews, ping, ensureAdmin };

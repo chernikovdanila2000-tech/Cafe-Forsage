@@ -11,7 +11,9 @@ const { startSite, makeBrowser, plain } = require('./helpers');
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'inkwell-migration-'));
 const dbPath = path.join(dir, 'school.db');
 const old = new DatabaseSync(dbPath);
-old.exec("CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL); INSERT INTO settings VALUES ('lessonPrice', '450'), ('packageDiscount', '20');");
+old.exec("CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL); INSERT INTO settings VALUES ('lessonPrice', '450'), ('packageDiscount', '20');"
+  + "CREATE TABLE teachers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, role TEXT, about TEXT, photo TEXT, position INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')));"
+  + "INSERT INTO teachers (name, role, about, position) VALUES ('Олександра Ленгер', '2 года опыта, b2', 'Працюю только с детьми', 1);");
 old.close();
 
 const site = startSite({ DB_PATH: dbPath });
@@ -32,4 +34,10 @@ test('збережена ціна 450 ₴ стає 400 ₴, абонемент 8
   db.close();
   assert.equal(settings.lessonPrice, '400');
   assert.equal(settings['migration.prices-2026-11'], '1');
+});
+
+test("картка Олександри: ім'я без прізвища й опис українською", async () => {
+  const page = plain((await makeBrowser(site.base).request('/')).text);
+  assert.match(page, /Олександра 2 роки досвіду · B2 Працюю лише з дітьми\./);
+  assert.doesNotMatch(page, /Ленгер|года опыта|только/);
 });
