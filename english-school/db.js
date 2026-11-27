@@ -138,6 +138,20 @@ addColumn('bookings', 'kind', "TEXT NOT NULL DEFAULT 'lesson'");
 addColumn('users', 'contact_method', 'TEXT');
 addColumn('users', 'contact_value', 'TEXT');
 addColumn('orders', 'contact', 'TEXT');
+// Підтвердження номера телефону кодом з SMS.
+addColumn('users', 'phone_verified', 'INTEGER NOT NULL DEFAULT 0');
+db.exec(`
+  CREATE TABLE IF NOT EXISTS phone_codes (
+    user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    phone      TEXT NOT NULL,
+    code_hash  TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    attempts   INTEGER NOT NULL DEFAULT 0,
+    sent_at    INTEGER NOT NULL,
+    sends      INTEGER NOT NULL DEFAULT 1,
+    window_at  INTEGER NOT NULL
+  );
+`);
 
 
 // ---------- Пароли ----------
@@ -158,10 +172,10 @@ function verifyPassword(password, stored) {
 // ---------- Пользователи ----------
 
 const users = {
-  create({ name, email, phone, password, level, source, isAdmin = false }) {
+  create({ name, email, phone, password, level, source, isAdmin = false, phoneVerified = true }) {
     const result = db
-      .prepare('INSERT INTO users (name, email, phone, password_hash, level, source, is_admin) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(name, email.toLowerCase(), phone || null, hashPassword(password), level || 'A1', source || null, isAdmin ? 1 : 0);
+      .prepare('INSERT INTO users (name, email, phone, password_hash, level, source, is_admin, phone_verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(name, email.toLowerCase(), phone || null, hashPassword(password), level || 'A1', source || null, isAdmin ? 1 : 0, phoneVerified ? 1 : 0);
     return Number(result.lastInsertRowid);
   },
   byEmail(email) {
@@ -203,6 +217,17 @@ const users = {
     db.prepare('UPDATE users SET is_teacher = ? WHERE id = ?').run(isTeacher ? 1 : 0, id);
     // Колишній викладач більше не веде учнів.
     if (!isTeacher) db.prepare('UPDATE users SET teacher_id = NULL WHERE teacher_id = ?').run(id);
+  },
+  setPhone(id, phone) {
+    db.prepare('UPDATE users SET phone = ?, phone_verified = 0 WHERE id = ?').run(phone, id);
+  },
+  markPhoneVerified(id, phone) {
+    db.prepare('UPDATE users SET phone = ?, phone_verified = 1 WHERE id = ?').run(phone, id);
+  },
+  // Чи цей номер уже підтверджено в іншому акаунті (порівнюємо лише цифри).
+  phoneTaken(digits, exceptId = 0) {
+    return db.prepare('SELECT id, phone FROM users WHERE phone_verified = 1 AND id != ?').all(exceptId)
+      .some((u) => String(u.phone || '').replace(/\D/g, '') === digits);
   },
   setContact(id, method, value) {
     db.prepare('UPDATE users SET contact_method = ?, contact_value = ? WHERE id = ?').run(method, value, id);
@@ -438,6 +463,28 @@ const bookings = {
   },
 };
 
+// Коди підтвердження номера (зберігаємо лише хеш коду).
+const phoneCodes = {
+  get(userId) {
+    return db.prepare('SELECT * FROM phone_codes WHERE user_id = ?').get(userId);
+  },
+  save({ userId, phone, codeHash, expiresAt, now }) {
+    const old = this.get(userId);
+    const fresh = !old || now - old.window_at > 60 * 60 * 1000;
+    db.prepare(`INSERT INTO phone_codes (user_id, phone, code_hash, expires_at, attempts, sent_at, sends, window_at)
+      VALUES (?, ?, ?, ?, 0, ?, 1, ?)
+      ON CONFLICT(user_id) DO UPDATE SET phone = excluded.phone, code_hash = excluded.code_hash, expires_at = excluded.expires_at,
+        attempts = 0, sent_at = excluded.sent_at, sends = ?, window_at = ?`)
+      .run(userId, phone, codeHash, expiresAt, now, now, fresh ? 1 : old.sends + 1, fresh ? now : old.window_at);
+  },
+  attempt(userId) {
+    db.prepare('UPDATE phone_codes SET attempts = attempts + 1 WHERE user_id = ?').run(userId);
+  },
+  remove(userId) {
+    db.prepare('DELETE FROM phone_codes WHERE user_id = ?').run(userId);
+  },
+};
+
 const reviews = {
   all() {
     return db.prepare('SELECT * FROM reviews ORDER BY id DESC').all();
@@ -478,4 +525,4 @@ function ensureAdmin() {
   }
 }
 
-module.exports = { schedule, bookings, UPLOADS_DIR, storageWarning, onRailway, db, users, sessions, orders, lessons, requests, settings, teachers, reviews, ping, ensureAdmin };
+module.exports = { schedule, bookings, phoneCodes, UPLOADS_DIR, storageWarning, onRailway, db, users, sessions, orders, lessons, requests, settings, teachers, reviews, ping, ensureAdmin };

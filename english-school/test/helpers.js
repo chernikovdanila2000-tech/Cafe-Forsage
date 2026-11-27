@@ -10,12 +10,18 @@ function startSite(env = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'inkwell-test-'));
   const port = 3900 + Math.floor(Math.random() * 1000);
   const telegram = { messages: [] };
+  const sms = { messages: [] }; // фальшивий TurboSMS на тому ж сервері
   const tgServer = http.createServer((req, res) => {
     let body = '';
     req.on('data', (c) => { body += c; });
     req.on('end', () => {
-      const method = req.url.split('/').pop();
       const data = body ? JSON.parse(body) : {};
+      res.setHeader('Content-Type', 'application/json');
+      if (req.url === '/message/send.json') {
+        sms.messages.push({ to: data.recipients[0], text: data.sms.text, auth: req.headers.authorization });
+        return res.end(JSON.stringify({ response_code: 800, response_status: 'SUCCESS_MESSAGE_ACCEPTED', response_result: [{ phone: data.recipients[0], response_code: 0 }] }));
+      }
+      const method = req.url.split('/').pop();
       let result = true;
       if (method === 'getMe') result = { username: 'inkwell_test_bot' };
       if (method === 'getUpdates') result = [{ message: { chat: { id: 4242 } } }];
@@ -36,6 +42,7 @@ function startSite(env = {}) {
         PORT: String(port),
         DB_PATH: path.join(dir, 'school.db'),
         TELEGRAM_API_URL: `http://127.0.0.1:${tgServer.address().port}`,
+        SMS_API_URL: `http://127.0.0.1:${tgServer.address().port}`,
         RAILWAY_PROJECT_ID: '',
         RAILWAY_ENVIRONMENT_NAME: '',
         RAILWAY_VOLUME_MOUNT_PATH: '',
@@ -58,7 +65,7 @@ function startSite(env = {}) {
   })();
 
   return {
-    base, dir, telegram, ready,
+    base, dir, telegram, sms, ready,
     log: () => log,
     stop() {
       server?.kill();

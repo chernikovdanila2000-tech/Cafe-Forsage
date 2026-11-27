@@ -159,7 +159,7 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=17">
+<link rel="stylesheet" href="/styles.css?v=18">
 ${analytics(events)}
 </head>
 <body class="${h(bodyClass)}">
@@ -698,6 +698,39 @@ function dashboard(ctx, { balance, orders, teacher, teachers = [], upcoming = []
 
 // ---------- Оплата ----------
 
+// Підтвердження номера: код з SMS.
+function verifyPhone(ctx, { next = '/dashboard', error, notice }) {
+  const { lang, user } = ctx;
+  const T = (key, vars) => t(lang, key, vars);
+  const q = `?next=${encodeURIComponent(next)}`;
+  const body = `
+<section class="auth">
+  <div class="auth-card">
+    <p class="eyebrow">${T('verify.eyebrow')}</p>
+    <h1>${T('verify.title')}</h1>
+    <p class="muted">${T('verify.lead', { phone: user.phone || '' })}</p>
+    ${notice ? `<div class="flash flash-success">${h(notice)}</div>` : ''}
+    ${error ? `<div class="flash flash-error">${h(error)}</div>` : ''}
+    <form method="post" action="/verify-phone${q}" class="form">
+      <label>${T('verify.code')}<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required autofocus placeholder="000000" class="code-input"></label>
+      <button class="btn btn-accent btn-block" type="submit">${T('verify.submit')}</button>
+    </form>
+    <form method="post" action="/verify-phone/resend${q}" class="verify-resend">
+      <button class="btn btn-ghost btn-small" type="submit">${T('verify.resend')}</button>
+    </form>
+    <details class="verify-change">
+      <summary>${T('verify.changeTitle')}</summary>
+      <form method="post" action="/verify-phone/change${q}" class="form">
+        <label>${T('auth.phone')}<input name="phone" type="tel" required placeholder="+380 67 000 00 00" autocomplete="tel"></label>
+        <button class="btn btn-dark btn-small" type="submit">${T('verify.changeSubmit')}</button>
+      </form>
+    </details>
+    <form method="post" action="/logout" class="auth-switch"><button class="link-button" type="submit">${T('dash.logout')}</button></form>
+  </div>
+</section>`;
+  return layout(ctx, { title: T('verify.title'), body, bodyClass: 'page-auth', noindex: true });
+}
+
 // Перед оплатою: куди з учнем зв'язуватися.
 function payContact(ctx, { product, messengers, values = {}, error }) {
   const { lang, user } = ctx;
@@ -1175,6 +1208,15 @@ function adminSettings(ctx, { values, counts, notice, error }) {
         </div>
       </div>
 
+      <div class="panel">
+        <h2 class="panel-title">${T('admin.settings.sms')}</h2>
+        <p class="muted small">${config.sms.enabled ? `${icon.check} ${T('admin.settings.smsOn')}` : T('admin.settings.smsSteps')}</p>
+        <div class="form form-2">
+          ${field('smsToken', { placeholder: 'токен з кабінету TurboSMS' })}
+          ${field('smsSender', { hint: 'admin.settings.smsSenderHint', placeholder: 'Inkwell' })}
+        </div>
+      </div>
+
       <div class="settings-actions">
         <button class="btn btn-dark" type="submit">${T('admin.settings.save')}</button>
       </div>
@@ -1362,6 +1404,6 @@ function adminSchedule(ctx, { upcoming, teachers, counts }) {
 module.exports = {
   home, thanks, authPage, forgot, dashboard, checkout, account, legalPage, notFound, adminOnly,
   adminOverview, adminRequests, adminOrders, adminStudents, adminTeachers, adminReviews, adminSettings,
-  teacherHome, adminSchedule, schedulePage, payContact,
+  teacherHome, adminSchedule, schedulePage, payContact, verifyPhone,
   LEVEL_CODES, productName,
 };

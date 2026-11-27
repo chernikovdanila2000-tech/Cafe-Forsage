@@ -24,6 +24,7 @@ const views = require('./views');
 const legal = require('./legal');
 const notify = require('./notify');
 const slots = require('./slots');
+const sms = require('./sms');
 const { t, LANGS, DEFAULT_LANG } = require('./i18n');
 
 db.ensureAdmin();
@@ -40,6 +41,11 @@ db.sessions.cleanup();
   // Нові ціни: заняття 350 ₴, абонемент — 8 занять за 2 550 ₴.
   if (!saved['migration.prices-350']) {
     db.settings.save({ 'migration.prices-350': '1', lessonPrice: '350', packagePrice: '2550', packageLessons: '8' });
+  }
+  // Підтвердження номера з'явилося пізніше: наявні акаунти вважаємо підтвердженими.
+  if (!saved['migration.phone-verified']) {
+    db.db.prepare('UPDATE users SET phone_verified = 1').run();
+    db.settings.save({ 'migration.phone-verified': '1' });
   }
   // Картка викладачки: ім'я без прізвища (збігається з акаунтом — фото підтягується) і текст українською.
   if (!saved['migration.teacher-card-uk']) {
@@ -135,9 +141,18 @@ const notFound = (req, res) => res.status(404).send(views.notFound(ctx(req)));
 // Пускаємо далі лише за посиланнями всередині сайту, щоб ?next= не можна було вести на чужий домен.
 const safeNext = (value) => (typeof value === 'string' && /^\/(?![/\\])/.test(value) ? value : '/dashboard');
 
-function requireUser(req, res, next) {
+// Учень із непідтвердженим номером (коли SMS налаштовано) спершу підтверджує його.
+const needsPhone = (user) => config.sms.enabled && !user.is_admin && !user.is_teacher && !user.phone_verified;
+
+function requireLogin(req, res, next) {
   if (req.user) return next();
   res.redirect(`/login?msg=login_required&next=${encodeURIComponent(req.originalUrl)}`);
+}
+
+function requireUser(req, res, next) {
+  if (!req.user) return requireLogin(req, res, next);
+  if (needsPhone(req.user)) return res.redirect(`/verify-phone?next=${encodeURIComponent(req.method === 'GET' ? req.originalUrl : '/dashboard')}`);
+  next();
 }
 
 function requireAdmin(req, res, next) {
@@ -173,6 +188,7 @@ function rateLimit(name, max, windowMs) {
 const limitLogin = rateLimit('login', 10, 10 * 60 * 1000);
 const limitRegister = rateLimit('register', 5, 60 * 60 * 1000);
 const limitRequest = rateLimit('request', 5, 10 * 60 * 1000);
+const limitSms = rateLimit('sms', 10, 60 * 60 * 1000);
 
 // ---------- Службові адреси ----------
 
@@ -293,15 +309,105 @@ app.post('/register', (req, res) => {
   if (!values.name) return fail('err.name');
   if (!isEmail(values.email)) return fail('err.email');
   if (values.phone.replace(/\D/g, '').length < 9) return fail('err.phone');
+  if (config.sms.enabled) {
+    const digits = sms.normalize(values.phone);
+    if (!digits) return fail('err.phone');
+    if (db.users.phoneTaken(digits)) return fail('err.phoneTaken');
+    values.phone = `+${digits}`;
+  }
   if (password.length < 8) return fail('err.password');
   if (!values.agree) return fail('err.agree');
   if (db.users.byEmail(values.email)) return fail('err.exists');
   if (limitRegister(req)) return fail('msg.too_many', 429);
 
-  const userId = db.users.create({ ...values, password, source: req.source });
+  // Поки SMS не налаштовано, номер не перевіряємо — і потім такого учня не блокуємо.
+  const userId = db.users.create({ ...values, password, source: req.source, phoneVerified: !config.sms.enabled });
   notify.events.registration({ ...values, source: req.source });
   startSession(res, userId);
-  res.redirect(req.body.next ? safeNext(req.body.next) : '/dashboard?msg=registered');
+  const next = req.body.next ? safeNext(req.body.next) : '/dashboard?msg=registered';
+  if (config.sms.enabled) {
+    sendPhoneCode(db.users.byId(userId));
+    return res.redirect(`/verify-phone?next=${encodeURIComponent(next)}`);
+  }
+  res.redirect(next);
+});
+
+// ---------- Підтвердження номера кодом з SMS ----------
+
+const CODE_TTL = 10 * 60 * 1000; // код діє 10 хв
+const RESEND_AFTER = 60 * 1000; // надіслати ще раз можна через хвилину
+const MAX_SENDS = 5; // не більше 5 SMS на годину для одного акаунта
+const MAX_ATTEMPTS = 5;
+const hashCode = (userId, code) => crypto.createHash('sha256').update(`${userId}:${code}`).digest('hex');
+
+// Повертає null, якщо код надіслано, або ключ помилки.
+async function sendPhoneCode(user) {
+  const digits = sms.normalize(user.phone);
+  if (!digits) return 'err.phone';
+  const now = Date.now();
+  const last = db.phoneCodes.get(user.id);
+  if (last && now - last.sent_at < RESEND_AFTER) return 'verify.wait';
+  if (last && now - last.window_at < 60 * 60 * 1000 && last.sends >= MAX_SENDS) return 'verify.tooMany';
+  const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+  db.phoneCodes.save({ userId: user.id, phone: digits, codeHash: hashCode(user.id, code), expiresAt: now + CODE_TTL, now });
+  const result = await sms.send(digits, `Inkwell Academy: ваш код ${code}. Діє 10 хвилин.`);
+  return result.ok ? null : 'verify.sendFailed';
+}
+
+const verifyNext = (req) => safeNext(req.query.next || req.body?.next || '/dashboard');
+
+app.get('/verify-phone', requireLogin, async (req, res) => {
+  const user = req.user;
+  if (!needsPhone(user)) return res.redirect(verifyNext(req));
+  let error = null;
+  if (!db.phoneCodes.get(user.id) || db.phoneCodes.get(user.id).expires_at < Date.now()) {
+    const fail = limitSms(req) ? 'msg.too_many' : await sendPhoneCode(user);
+    if (fail && fail !== 'verify.wait') error = t(req.lang, fail);
+  }
+  res.send(views.verifyPhone(ctx(req), { next: verifyNext(req), error, notice: req.query.msg ? t(req.lang, `verify.${req.query.msg}`) : null }));
+});
+
+app.post('/verify-phone', requireLogin, (req, res) => {
+  const user = req.user;
+  const next = verifyNext(req);
+  if (!needsPhone(user)) return res.redirect(next);
+  const fail = (key) => res.status(400).send(views.verifyPhone(ctx(req), { next, error: t(req.lang, key) }));
+  const entry = db.phoneCodes.get(user.id);
+  const code = String(req.body.code || '').replace(/\D/g, '');
+  if (!entry || entry.expires_at < Date.now()) return fail('verify.expired');
+  if (entry.attempts >= MAX_ATTEMPTS) return fail('verify.tooManyAttempts');
+  if (hashCode(user.id, code) !== entry.code_hash) {
+    db.phoneCodes.attempt(user.id);
+    return fail('verify.wrong');
+  }
+  if (db.users.phoneTaken(entry.phone, user.id)) return fail('err.phoneTaken');
+  db.users.markPhoneVerified(user.id, `+${entry.phone}`);
+  db.phoneCodes.remove(user.id);
+  notify.send([`✅ <b>Номер підтверджено</b>`, `${user.name} · +${entry.phone}`.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c])]);
+  res.redirect(next);
+});
+
+app.post('/verify-phone/resend', requireLogin, async (req, res) => {
+  const next = encodeURIComponent(verifyNext(req));
+  if (!needsPhone(req.user)) return res.redirect(verifyNext(req));
+  const fail = limitSms(req) ? 'msg.too_many' : await sendPhoneCode(req.user);
+  if (fail) return res.status(fail === 'verify.wait' ? 200 : 400).send(views.verifyPhone(ctx(req), { next: verifyNext(req), error: t(req.lang, fail) }));
+  res.redirect(`/verify-phone?msg=sent&next=${next}`);
+});
+
+// Помилилися в номері — змінюємо його й надсилаємо код на новий.
+app.post('/verify-phone/change', requireLogin, async (req, res) => {
+  const user = req.user;
+  if (!needsPhone(user)) return res.redirect(verifyNext(req));
+  const fail = (key) => res.status(400).send(views.verifyPhone(ctx(req), { next: verifyNext(req), error: t(req.lang, key) }));
+  const digits = sms.normalize(req.body.phone);
+  if (!digits) return fail('err.phone');
+  if (db.users.phoneTaken(digits, user.id)) return fail('err.phoneTaken');
+  db.users.setPhone(user.id, `+${digits}`);
+  db.phoneCodes.remove(user.id);
+  const error = limitSms(req) ? 'msg.too_many' : await sendPhoneCode(db.users.byId(user.id));
+  if (error) return fail(error);
+  res.redirect(`/verify-phone?msg=sent&next=${encodeURIComponent(verifyNext(req))}`);
 });
 
 app.get('/login', (req, res) => {
@@ -452,11 +558,26 @@ app.get('/account', requireUser, (req, res) => res.send(views.account(ctx(req), 
 app.post('/account', requireUser, (req, res) => {
   const name = field(req.body.name, 80);
   if (!name) return res.status(400).send(views.account(ctx(req), { error: t(req.lang, 'err.nameEmpty') }));
+  let phone = field(req.body.phone, 30);
+  // Новий номер учня (коли SMS увімкнено) треба знову підтвердити кодом.
+  const student = !req.user.is_admin && !req.user.is_teacher;
+  const changed = sms.normalize(phone) !== sms.normalize(req.user.phone);
+  if (config.sms.enabled && student && changed) {
+    const digits = sms.normalize(phone);
+    if (!digits) return res.status(400).send(views.account(ctx(req), { error: t(req.lang, 'err.phone') }));
+    if (db.users.phoneTaken(digits, req.user.id)) return res.status(400).send(views.account(ctx(req), { error: t(req.lang, 'err.phoneTaken') }));
+    phone = `+${digits}`;
+  }
   db.users.updateProfile(req.user.id, {
     name,
-    phone: field(req.body.phone, 30),
+    phone,
     level: views.LEVEL_CODES.includes(req.body.level) ? req.body.level : req.user.level,
   });
+  if (config.sms.enabled && student && changed) {
+    db.users.setPhone(req.user.id, phone);
+    db.phoneCodes.remove(req.user.id);
+    return res.redirect('/verify-phone?next=%2Faccount');
+  }
   res.redirect('/account?msg=profile_saved');
 });
 
@@ -553,6 +674,7 @@ function checklist() {
     { key: 'legal', ok: Boolean(config.legal.seller && config.legal.taxId && config.legal.address), href: '/admin/settings' },
     { key: 'payment', ok: Boolean(config.paymentUrl || config.paymentDetails), href: '/admin/settings' },
     { key: 'telegram', ok: Boolean(config.telegramBot.token && config.telegramBot.chatId), href: '/admin/settings' },
+    { key: 'sms', ok: config.sms.enabled, href: '/admin/settings' },
     { key: 'site', ok: Boolean(config.siteUrl), href: '/admin/settings' },
     { key: 'pixel', ok: Boolean(config.metaPixelId), href: '/admin/settings' },
     { key: 'teachers', ok: db.teachers.all().length > 0, href: '/admin/teachers' },
@@ -772,6 +894,8 @@ const SETTINGS_RULES = {
   metaPixelId: (v) => !v || /^\d{6,20}$/.test(v),
   gaId: (v) => !v || /^G-[A-Z0-9]{4,20}$/i.test(v),
   tgBotToken: (v) => !v || /^\d{5,15}:[\w-]{20,}$/.test(v),
+  smsToken: (v) => !v || /^\S{10,200}$/.test(v),
+  smsSender: (v) => !v || /^[A-Za-z0-9 ._-]{2,11}$/.test(v),
 };
 
 admin.get('/settings', (req, res) => renderSettings(req, res));

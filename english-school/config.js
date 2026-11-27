@@ -23,6 +23,8 @@ const EDITABLE = {
   gaId: ['GA_MEASUREMENT_ID', ''],
   tgBotToken: ['TELEGRAM_BOT_TOKEN', ''],
   tgChatId: ['TELEGRAM_CHAT_ID', ''],
+  smsToken: ['SMS_TOKEN', ''],
+  smsSender: ['SMS_SENDER', ''],
 };
 
 const production = db.onRailway || process.env.NODE_ENV === 'production';
@@ -99,6 +101,13 @@ const config = {
       site: value('siteUrl'),
       updated: process.env.LEGAL_UPDATED || '04.11.2026',
     };
+  },
+
+  // SMS-підтвердження номера: працює, коли задано і токен, і ім'я відправника.
+  get sms() {
+    const token = value('smsToken');
+    const sender = value('smsSender');
+    return { token, sender, enabled: Boolean(token && sender) };
   },
 
   get telegramBot() {
