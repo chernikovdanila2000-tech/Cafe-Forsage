@@ -159,7 +159,7 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=15">
+<link rel="stylesheet" href="/styles.css?v=16">
 ${analytics(events)}
 </head>
 <body class="${h(bodyClass)}">
@@ -384,7 +384,11 @@ ${teachers.length ? `
           <h3>${h(teacher.name)}</h3>
           ${teacher.role ? `<p class="teacher-role">${h(teacher.role)}</p>` : ''}
           ${teacher.about ? `<p class="muted">${h(teacher.about)}</p>` : ''}
-          ${teacher.accountId ? `<a class="btn btn-small btn-ghost teacher-slots" href="/schedule/${teacher.accountId}">${icon.clock} ${T('schedule.button')}</a>` : ''}
+          ${teacher.accountId ? `
+          <div class="teacher-actions">
+            <a class="btn btn-small btn-accent" href="/schedule/${teacher.accountId}">${T('trial.button')}</a>
+            <a class="btn btn-small btn-ghost teacher-slots" href="/schedule/${teacher.accountId}">${icon.clock} ${T('schedule.button')}</a>
+          </div>` : ''}
         </article>`).join('')}
     </div>
   </div>
@@ -1199,7 +1203,7 @@ function schedulePage(ctx, { teacher, hasSchedule, freeSlots, student, canBook, 
         <p><b>${T('trial.noteTitle', { min: config.trialMinutes })}</b></p>
         <p class="small">${T('trial.about', { min: config.trialMinutes })}</p>
         <p>${T('schedule.loginFirst')}</p>
-        <div class="hero-actions"><a class="btn btn-dark btn-small" href="/register?next=${next}">${T('auth.toRegister')}</a><a class="btn btn-ghost btn-small" href="/login?next=${next}">${T('auth.toLogin')}</a></div>
+        <div class="hero-actions"><a class="btn btn-dark btn-small" href="/register?next=${next}">${T('trial.register')}</a><a class="btn btn-ghost btn-small" href="/login?next=${next}">${T('auth.toLogin')}</a></div>
       </div>`;
   } else if (student && canBook <= 0 && trial) {
     note = `${trialNote(lang)}${isMine ? '' : `<p class="small">${h(T('schedule.willChoose', { name: teacher.name }))}</p>`}`;
@@ -1277,6 +1281,14 @@ function scheduleEditor(availability, hours, lang) {
     </form>`;
 }
 
+// Окремий блок «Пробні уроки» — щоб нових учнів було видно одразу.
+function trialsBlock(upcoming, lang, { showTeacher }) {
+  const trials = upcoming.filter((b) => b.kind === 'trial');
+  return `
+    <h2 class="dash-title">🎁 ${t(lang, 'trial.listTitle', { n: trials.length })}</h2>
+    ${trials.length ? bookingsTable(trials, lang, { showTeacher }) : `<p class="muted">${t(lang, 'trial.listEmpty')}</p>`}`;
+}
+
 function teacherHome(ctx, { students, upcoming = [], availability = {}, hours = [] }) {
   const { lang } = ctx;
   const T = (key) => t(lang, key);
@@ -1291,8 +1303,9 @@ function teacherHome(ctx, { students, upcoming = [], availability = {}, hours = 
       <form method="post" action="/logout"><button class="btn btn-ghost btn-small" type="submit">${T('dash.logout')}</button></form>
     </div>
 
+    ${trialsBlock(upcoming, lang, { showTeacher: false })}
     <h2 class="dash-title">${T('teacher.upcoming')}</h2>
-    ${upcoming.length ? bookingsTable(upcoming, lang, { showTeacher: false }) : `<p class="muted">${T('teacher.noUpcoming')}</p>`}
+    ${upcoming.some((b) => b.kind !== 'trial') ? bookingsTable(upcoming.filter((b) => b.kind !== 'trial'), lang, { showTeacher: false }) : `<p class="muted">${T('teacher.noUpcoming')}</p>`}
 
     <h2 class="dash-title">${T('teacher.students')}</h2>
     <p class="admin-hint">${T('teacher.hint')}</p>
@@ -1311,7 +1324,9 @@ function adminSchedule(ctx, { upcoming, teachers, counts }) {
   const T = (key) => t(lang, key);
   const content = `
     <p class="admin-hint">${T('admin.schedule.hint')}</p>
-    ${upcoming.length ? bookingsTable(upcoming, lang, { showTeacher: true }) : `<p class="muted">${T('admin.none')}</p>`}
+    ${trialsBlock(upcoming, lang, { showTeacher: true })}
+    <h2 class="dash-title">${T('teacher.upcoming')}</h2>
+    ${upcoming.some((b) => b.kind !== 'trial') ? bookingsTable(upcoming.filter((b) => b.kind !== 'trial'), lang, { showTeacher: true }) : `<p class="muted">${T('admin.none')}</p>`}
     <h2 class="dash-title">${T('admin.schedule.teachers')}</h2>
     ${teachers.length ? `
     <div class="table-wrap">

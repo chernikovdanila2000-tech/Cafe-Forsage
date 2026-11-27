@@ -632,3 +632,5 @@ button.slot:active { background: var(--ink); color: #fff; }
 .form .messenger input { width: auto; margin: 0; padding: 0; accent-color: var(--accent); }
 .form .messenger:has(input:checked) { border-color: var(--accent); background: var(--tint); }
 .booking-row .tag { align-self: center; }
+.teacher-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 16px; }
+.teacher .teacher-actions .teacher-slots { margin-top: 0; }

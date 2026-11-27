@@ -81,8 +81,9 @@ test('без оплати — один безкоштовний пробний �
   assert.equal(slotsOf(after).length, 0);
   const again = await student.request('/book', { method: 'POST', form: { slot: free.at(-29) } });
   assert.match(again.location, /booking_no_lessons/);
-  // Викладач бачить позначку пробного уроку.
-  assert.match(plain((await teacher.request('/teacher')).text), /Пробний · 30 хв/);
+  // Викладач і адмін бачать пробний урок в окремому блоці.
+  assert.match(plain((await teacher.request('/teacher')).text), /Пробні уроки \(1\).*Пробний · 30 хв.*Максим/);
+  assert.match(plain((await admin.request('/admin/schedule')).text), /Пробні уроки \(1\).*Максим/);
 });
 
 test('учень записується; час зникає для інших; ліміт за оплаченими заняттями', async () => {
@@ -146,6 +147,26 @@ test('скасування: учень — не пізніше ніж за 24 г
   assert.match(byTeacher.location, /teacher\.bookingCancelled/);
 });
 
+test('пробний — лише якщо занять ще не було (навіть після скасування звичайного запису)', async () => {
+  // Софія вже оплатила абонемент і мала записи — пробний їй недоступний, навіть коли заняття скінчаться.
+  const dash = plain((await other.request('/dashboard')).text);
+  assert.doesNotMatch(dash, /Пробний урок — безкоштовно/);
+  // Учень, якому адмін відмітив проведене заняття, теж не отримує пробний.
+  const veteran = browser();
+  // Окрема IP-адреса, щоб не впертися в ліміт реєстрацій з однієї адреси.
+  await veteran.request('/register', { method: 'POST', headers: { 'x-forwarded-for': '10.0.0.9' }, form: { name: 'Олег', email: 'oleg@test.ua', phone: '+380501234567', password: 'secret123', agree: '1' } });
+  await veteran.request('/choose-teacher', { method: 'POST', form: { teacher_id: String(ids.teacher) } });
+  await pay(veteran, 'single');
+  const page = (await admin.request('/admin/students')).text;
+  const id = page.match(/oleg@test\.ua[\s\S]*?\/admin\/users\/(\d+)\/held/)[1];
+  await admin.request(`/admin/users/${id}/held`, { method: 'POST' });
+  const vd = (await veteran.request('/dashboard')).text;
+  assert.doesNotMatch(plain(vd), /Пробний урок — безкоштовно/);
+  assert.equal(slotsOf(vd).length, 0);
+  const r = await veteran.request('/book', { method: 'POST', form: { slot: '2099-01-01|10:00' } });
+  assert.match(r.location, /booking_no_lessons/);
+});
+
 test('учень бачить вільні дні викладача в картці вибору', async () => {
   const fresh = browser();
   await register(fresh, 'Новий', 'fresh@test.ua');
@@ -160,6 +181,7 @@ test('кнопка «Вільний час»: сторінка для гостя
   await fetch(`${site.base}/admin/teachers`, { method: 'POST', body: fd, headers: { cookie: [...admin.jar].map(([k, v]) => `${k}=${v}`).join('; ') }, redirect: 'manual' });
   const home = (await browser().request('/')).text;
   assert.match(home, new RegExp(`href="/schedule/${ids.teacher}"[^>]*>[\\s\\S]*?Вільний час`));
+  assert.match(plain(home), /Пробний урок безкоштовно/);
 
   // Гість бачить години, але не кнопки запису.
   const guest = (await browser().request(`/schedule/${ids.teacher}`)).text;

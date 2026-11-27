@@ -422,9 +422,14 @@ const bookings = {
     if (studentId) { where.push('b.student_id = :studentId'); params.studentId = studentId; }
     return db.prepare(`SELECT ${BOOKING_FIELDS} ${BOOKING_JOIN} WHERE ${where.join(' AND ')} ORDER BY b.date, b.time`).all(params);
   },
-  // Чи учень уже використав пробний урок (запис, який не скасовано).
-  hasTrial(studentId) {
-    return Boolean(db.prepare("SELECT 1 FROM bookings WHERE student_id = ? AND kind = 'trial' AND status != 'cancelled'").get(studentId));
+  // Чи в учня вже були (або є) будь-які заняття: пробний чи звичайний запис, проведене заняття, оплата.
+  // Пробний урок можна взяти лише тоді, коли нічого з цього ще не було.
+  hadLessons(studentId) {
+    return Boolean(db.prepare(`
+      SELECT 1 FROM bookings WHERE student_id = :id AND status != 'cancelled'
+      UNION ALL SELECT 1 FROM attendance WHERE user_id = :id
+      UNION ALL SELECT 1 FROM orders WHERE user_id = :id AND status = 'paid'
+      LIMIT 1`).get({ id: studentId }));
   },
   // Зайняті години викладача: «YYYY-MM-DD HH:MM» → id учня, який записався.
   taken(teacherId, fromDate, toDate) {

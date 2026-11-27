@@ -344,11 +344,11 @@ app.get('/dashboard', requireUser, (req, res) => {
 });
 
 // Що потрібно кабінету учня для запису: його майбутні заняття, вільний час викладача й скільки ще можна записатися.
-// Пробний урок (безкоштовний) — один раз, для учня без оплачених занять.
+// Пробний урок (безкоштовний) — лише для учня, у якого ще не було жодних занять, записів чи оплат.
 function bookingInfo(user) {
   const upcoming = db.bookings.upcoming({ from: slots.now(), studentId: user.id }).map((b) => ({ ...b, canCancel: slots.canCancel(b) }));
   const canBook = Math.max(db.lessons.balance(user.id).left - upcoming.filter((b) => b.kind !== 'trial').length, 0);
-  const trial = canBook <= 0 && !db.bookings.hasTrial(user.id) && !db.orders.forUser(user.id).some((o) => o.status === 'paid');
+  const trial = canBook <= 0 && !db.bookings.hadLessons(user.id);
   const hasSchedule = user.teacher_id ? Object.keys(db.schedule.get(user.teacher_id)).length > 0 : false;
   return { upcoming, canBook, trial, hasSchedule, freeSlots: user.teacher_id ? slots.grid(user.teacher_id, user.id) : [] };
 }
