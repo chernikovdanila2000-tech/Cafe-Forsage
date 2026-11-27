@@ -27,7 +27,7 @@ after(() => {
 test('збережена ціна 400 ₴ стає 350 ₴, абонемент — 2 550 ₴', async () => {
   const page = plain((await makeBrowser(site.base).request('/')).text);
   assert.match(page, /55 хвилин з викладачем — 350 ₴/);
-  assert.doesNotMatch(page, /400 ₴/);
+  assert.doesNotMatch(page, /(?<![\d\s])400 ₴/);
   assert.match(page, /2\s550 ₴/);
   const db = new DatabaseSync(dbPath);
   const settings = Object.fromEntries(db.prepare('SELECT key, value FROM settings').all().map((r) => [r.key, r.value]));

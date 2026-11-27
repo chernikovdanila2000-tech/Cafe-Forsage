@@ -41,8 +41,17 @@ function levelOptions(lang, selected) {
   return LEVEL_CODES.map((k) => `<option value="${k}"${selected === k ? ' selected' : ''}>${h(t(lang, `level.${k}`))}</option>`).join('');
 }
 
-const productName = (productId, lang) => t(lang, productId === 'monthly' ? 'product.monthly' : 'product.single');
-const lessonsLabel = (n, lang) => (n === 1 ? t(lang, 'product.lesson1') : t(lang, 'product.lessons', { n }));
+// «4 заняття», «8 занять», «22 заняття», «12 занять».
+const lessonsLabel = (n, lang) => {
+  if (n === 1) return t(lang, 'product.lesson1');
+  const few = n % 10 >= 2 && n % 10 <= 4 && !(n % 100 >= 12 && n % 100 <= 14);
+  return t(lang, few ? 'product.lessonsFew' : 'product.lessons', { n });
+};
+const productName = (productId, lang) => {
+  if (productId === 'single') return t(lang, 'product.single');
+  const product = Object.hasOwn(config.products, productId) ? config.products[productId] : null;
+  return t(lang, 'product.pack', { lessons: lessonsLabel(product ? product.lessons : 8, lang) });
+};
 const paymentStatus = (status, lang) => (['paid', 'pending', 'cancelled'].includes(status) ? t(lang, `pay.${status}`) : status);
 
 // Telegram та Instagram можна вказати як @ім'я, ім'я або посилання.
@@ -159,7 +168,7 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=20">
+<link rel="stylesheet" href="/styles.css?v=22">
 ${analytics(events)}
 </head>
 <body class="${h(bodyClass)}">
@@ -352,7 +361,7 @@ function home(ctx, { teachers, reviews }) {
       </article>
       <article class="price-card price-card-accent">
         ${monthly.save ? `<span class="price-badge">${T('pricing.monthly.badge', { save: money(monthly.save, lang) })}</span>` : ''}
-        <h3>${T('pricing.monthly.title')}</h3>
+        <h3>${h(productName('monthly', lang))}</h3>
         ${monthly.save ? `<p class="price-old">${money(monthly.fullPrice, lang)}</p>` : ''}
         <p class="price">${money(monthly.price, lang)}<small> ${T('pricing.monthly.per', { n: monthly.lessons })}</small></p>
         <ul>
@@ -363,6 +372,16 @@ function home(ctx, { teachers, reviews }) {
         </ul>
         <a class="btn btn-light" href="/pay/monthly">${T('pricing.monthly.cta')}</a>
       </article>
+    </div>
+    <h3 class="packs-title">${T('pricing.packs.title')}</h3>
+    <div class="packs">
+      ${config.packages.filter((p) => p.id !== 'monthly').map((p) => `
+      <article class="pack-card">
+        <div class="pack-head"><b>${h(productName(p.id, lang))}</b>${p.save ? `<span class="tag tag-accent">−${money(p.save, lang)}</span>` : ''}</div>
+        <p class="pack-price">${money(p.price, lang)}${p.save ? ` <s>${money(p.fullPrice, lang)}</s>` : ''}</p>
+        <p class="muted small">${T('pricing.packs.perWeek', { n: p.perWeek, min: config.lessonDuration })}</p>
+        <a class="btn btn-small btn-ghost" href="/pay/${p.id}">${T('btn.pay')}</a>
+      </article>`).join('')}
     </div>
     <p class="legal-note">${T('pricing.legal')}</p>
   </div>
@@ -679,14 +698,15 @@ function dashboard(ctx, { balance, orders, teacher, teachers = [], upcoming = []
           <div class="buy-price"><b>${money(single.price, lang)}</b></div>
           <a class="btn btn-small btn-ghost" href="/pay/single">${T('btn.pay')}</a>
         </div>
-        <div class="buy-option buy-option-accent">
+        ${config.packages.map((p) => `
+        <div class="buy-option${p.id === 'monthly' ? ' buy-option-accent' : ''}">
           <div>
-            <b>${T('product.monthly')} ${monthly.save ? `<span class="tag tag-accent">−${money(monthly.save, lang)}</span>` : ''}</b>
-            <span>${T('pricing.monthly.f1', { n: monthly.lessons })}</span>
+            <b>${h(productName(p.id, lang))} ${p.save ? `<span class="tag tag-accent">−${money(p.save, lang)}</span>` : ''}</b>
+            <span>${T('pricing.packs.perWeek', { n: p.perWeek, min: config.lessonDuration })}${p.id === 'monthly' ? ` · ${T('pricing.packs.best')}` : ''}</span>
           </div>
-          <div class="buy-price">${monthly.save ? `<s>${money(monthly.fullPrice, lang)}</s>` : ''}<b>${money(monthly.price, lang)}</b></div>
-          <a class="btn btn-small btn-accent" href="/pay/monthly">${T('btn.pay')}</a>
-        </div>
+          <div class="buy-price">${p.save ? `<s>${money(p.fullPrice, lang)}</s>` : ''}<b>${money(p.price, lang)}</b></div>
+          <a class="btn btn-small ${p.id === 'monthly' ? 'btn-accent' : 'btn-ghost'}" href="/pay/${p.id}">${T('btn.pay')}</a>
+        </div>`).join('')}
         <p class="muted small">${h(T('dash.buyLead', { phone: user.phone || T('dash.noPhone') }))}</p>
         <p class="muted small">${T('dash.consult')}</p>
         <p class="muted small">${T('checkout.legal')}</p>
@@ -846,7 +866,7 @@ function checkout(ctx, { product, order, mode }) {
     <div class="checkout-row"><span>${T('checkout.number')}</span><b>№ ${order.id}</b></div>
     ${order.contact ? `<div class="checkout-row"><span>${T('pay.contactShort')}</span><b>${h(order.contact)}</b></div>` : ''}
     <div class="checkout-row"><span>${T('checkout.lessons')}</span><b>${h(lessonsLabel(order.lessons, lang))} · ${config.lessonDuration} ${T('unit.min')}</b></div>
-    ${product.save && product.id === 'monthly' ? `<div class="checkout-row"><span>${T('checkout.discount')}</span><b>${money(product.save, lang)} (<s>${money(product.fullPrice, lang)}</s>)</b></div>` : ''}
+    ${product && product.save ? `<div class="checkout-row"><span>${T('checkout.discount')}</span><b>${money(product.save, lang)} (<s>${money(product.fullPrice, lang)}</s>)</b></div>` : ''}
     <div class="checkout-row checkout-total"><span>${T('checkout.total')}</span><b>${money(order.amount, lang)}</b></div>
     ${action}
     <p class="legal-note">${T('checkout.legal')}</p>
@@ -1213,8 +1233,11 @@ function adminSettings(ctx, { values, counts, notice, error }) {
           ${field('lessonPrice', { type: 'number' })}
           ${field('packageLessons', { type: 'number' })}
           ${field('packagePrice', { type: 'number' })}
+          ${field('pack4Price', { type: 'number' })}
+          ${field('pack12Price', { type: 'number' })}
+          ${field('pack16Price', { type: 'number' })}
         </div>
-        <p class="muted small">${T('admin.settings.pricePreview', { single: money(single.price, lang), pkg: money(monthly.price, lang), full: money(monthly.fullPrice, lang), each: money(monthly.each, lang), n: monthly.lessons })}</p>
+        <p class="muted small">${T('admin.settings.pricePreview', { single: money(single.price, lang), packs: config.packages.map((p) => `${lessonsLabel(p.lessons, lang)} — ${money(p.price, lang)}`).join('; ') })}</p>
       </div>
 
       <div class="panel">

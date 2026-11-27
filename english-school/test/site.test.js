@@ -143,7 +143,7 @@ test('оплата для незалогіненого веде на вхід і
   const page = (await checkout(b, 'monthly', { contact_method: 'viber', contact_value: '+380501234567' })).text;
   const summary = plain(page);
   assert.match(summary, /Зв'язок Viber: \+380501234567/);
-  assert.match(summary, /Абонемент на місяць/);
+  assert.match(summary, /Абонемент: 8 занять/);
   assert.match(summary, /2\s550 ₴/);
   assert.match(summary, /Економія 250 ₴/);
 });
@@ -320,4 +320,23 @@ test('обмеження спроб входу', async () => {
   let last;
   for (let i = 0; i < 12; i++) last = await b.request('/login', { method: 'POST', form: { email: 'x@test.ua', password: 'nope' } });
   assert.equal(last.status, 429);
+});
+
+test('абонементи на 4, 12 і 16 занять: ціни, оплата, зарахування', async () => {
+  const page = plain((await browser().request('/')).text);
+  assert.match(page, /Абонемент: 4 заняття −100 ₴ 1\s300 ₴ 1\s400 ₴/);
+  assert.match(page, /Абонемент: 12 занять −300 ₴ 3\s900 ₴ 4\s200 ₴/);
+  assert.match(page, /Абонемент: 16 занять −500 ₴ 5\s100 ₴ 5\s600 ₴/);
+  assert.match(plain((await browser().request('/offer')).text), /Абонемент на 16 занять по 55 хв — 5\s100 грн/);
+
+  const b = browser();
+  await b.request('/register', { method: 'POST', headers: { 'x-forwarded-for': '10.2.0.1' }, form: { name: 'Нік', email: 'nik@test.ua', phone: '+380671230016', password: 'secret123', agree: '1' } });
+  assert.equal((await b.request('/pay/constructor')).status, 404);
+  const pageCheckout = (await checkout(b, 'pack16')).text;
+  assert.match(plain(pageCheckout), /Абонемент: 16 занять/);
+  assert.match(plain(pageCheckout), /5\s100 ₴/);
+  assert.match(plain(pageCheckout), /Економія 500 ₴/);
+  const orderId = pageCheckout.match(/\/pay\/demo\/(\d+)/)[1];
+  await b.request(`/pay/demo/${orderId}`, { method: 'POST' });
+  assert.match((await b.request('/dashboard')).text, /balance-num">16</);
 });

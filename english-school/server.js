@@ -632,19 +632,19 @@ function buildPaymentUrl(order, user) {
   return url.toString();
 }
 
-// «Оплатити»: /pay/single — разове заняття, /pay/monthly — абонемент.
+// «Оплатити»: /pay/single — разове заняття, /pay/pack4, /pay/monthly (8), /pay/pack12, /pay/pack16 — абонементи.
 // Створює замовлення, сповіщає адміністратора й показує спосіб оплати.
 // Спершу питаємо, де зручно зв'язатися (месенджер), потім створюємо замовлення.
 const MESSENGERS = ['telegram', 'viber', 'whatsapp', 'instagram', 'phone'];
 
 app.get('/pay/:product', requireUser, (req, res) => {
-  const product = config.products[req.params.product];
+  const product = Object.hasOwn(config.products, req.params.product) ? config.products[req.params.product] : null;
   if (!product) return notFound(req, res);
   res.send(views.payContact(ctx(req), { product, messengers: MESSENGERS }));
 });
 
 app.post('/pay/:product', requireUser, (req, res) => {
-  const product = config.products[req.params.product];
+  const product = Object.hasOwn(config.products, req.params.product) ? config.products[req.params.product] : null;
   if (!product) return notFound(req, res);
   const method = String(req.body.contact_method || '');
   const value = field(req.body.contact_value, 100);
@@ -664,7 +664,7 @@ app.get('/checkout/:id', requireUser, (req, res) => {
   const order = db.orders.byId(Number(req.params.id));
   if (!order || order.user_id !== req.user.id) return notFound(req, res);
   if (order.status !== 'pending') return res.redirect('/dashboard');
-  const product = config.products[order.product];
+  const product = Object.hasOwn(config.products, order.product) ? config.products[order.product] : null;
   if (config.paymentUrl) {
     try {
       return res.redirect(buildPaymentUrl(order, req.user));
@@ -929,6 +929,9 @@ const SETTINGS_RULES = {
   lessonPrice: (v) => /^\d{1,6}$/.test(v) && Number(v) > 0,
   packageLessons: (v) => /^\d{1,2}$/.test(v) && Number(v) >= 2 && Number(v) <= 50,
   packagePrice: (v) => /^\d{1,7}$/.test(v) && Number(v) > 0,
+  pack4Price: (v) => !v || (/^\d{1,7}$/.test(v) && Number(v) > 0),
+  pack12Price: (v) => !v || (/^\d{1,7}$/.test(v) && Number(v) > 0),
+  pack16Price: (v) => !v || (/^\d{1,7}$/.test(v) && Number(v) > 0),
   paymentUrl: (v) => !v || /^https:\/\/\S+$/i.test(v),
   siteUrl: (v) => !v || /^https?:\/\/[^\s/]+\.[^\s/]+$/i.test(v),
   metaPixelId: (v) => !v || /^\d{6,20}$/.test(v),

@@ -667,3 +667,15 @@ dialog.confirm[open] { animation: confirm-in .22s cubic-bezier(.2,.8,.2,1); }
 .confirm-list li { padding: 8px 12px; border-radius: 12px; background: var(--tint); font-weight: 600; font-size: .95rem; }
 .confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 24px; }
 .confirm-actions .btn { width: 100%; justify-content: center; }
+
+/* Інші абонементи (4, 12, 16 занять) */
+.packs-title { margin: 48px 0 16px; text-align: center; font-family: var(--serif); font-size: 1.5rem; font-weight: 600; }
+.packs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.pack-card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 22px 22px 20px; display: flex; flex-direction: column; gap: 6px; }
+.pack-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pack-price { margin: 4px 0 0; font-family: var(--serif); font-size: 2rem; font-weight: 600; line-height: 1.1; color: var(--ink); }
+.pack-price s { font-family: var(--sans); font-size: .95rem; font-weight: 500; color: #b3a7bb; margin-left: 6px; }
+.pack-card .btn { margin-top: auto; align-self: flex-start; }
+@media (max-width: 860px) { .packs { grid-template-columns: 1fr; max-width: 520px; margin-inline: auto; } }
+.tag { white-space: nowrap; flex: none; }
+.buy-option > div:first-child b { flex-wrap: wrap; row-gap: 4px; }

@@ -13,6 +13,9 @@ const EDITABLE = {
   lessonPrice: ['LESSON_PRICE', '350'],
   packageLessons: ['SUBSCRIPTION_LESSONS', '8'],
   packagePrice: ['SUBSCRIPTION_PRICE', '2550'],
+  pack4Price: ['PACK4_PRICE', '1300'],
+  pack12Price: ['PACK12_PRICE', '3900'],
+  pack16Price: ['PACK16_PRICE', '5100'],
   paymentUrl: ['PAYMENT_URL', ''],
   paymentDetails: ['PAYMENT_DETAILS', ''],
   legalSeller: ['LEGAL_SELLER', ''],
@@ -73,23 +76,32 @@ const config = {
 
   get lessonPrice() { return number('lessonPrice', 1, 100000); },
 
-  // Разове заняття та абонемент на місяць: 8 занять за 2 550 ₴ замість 8 × 350 = 2 800 ₴.
+  // Разове заняття й абонементи на місяць (4, 8, 12, 16 занять). Абонемент на 8 має id «monthly» — як і раніше.
   get products() {
     const price = this.lessonPrice;
-    const lessons = number('packageLessons', 2, 50);
-    const total = number('packagePrice', 1, 1000000);
-    const fullPrice = lessons * price;
+    const pack = (id, lessons, total, perWeek) => {
+      const fullPrice = lessons * price;
+      return {
+        id, lessons, perWeek, fullPrice,
+        price: total,
+        each: Math.round((total / lessons) * 100) / 100, // ціна одного заняття в абонементі (для повернення коштів)
+        save: Math.max(fullPrice - total, 0),
+      };
+    };
+    const lessons8 = number('packageLessons', 2, 50);
     return {
       single: { id: 'single', lessons: 1, price },
-      monthly: {
-        id: 'monthly',
-        lessons,
-        each: Math.round((total / lessons) * 100) / 100, // ціна одного заняття в абонементі (для повернення коштів)
-        fullPrice,
-        price: total,
-        save: Math.max(fullPrice - total, 0),
-      },
+      pack4: pack('pack4', 4, number('pack4Price', 1, 1000000), 1),
+      monthly: pack('monthly', lessons8, number('packagePrice', 1, 1000000), Math.max(Math.round(lessons8 / 4), 1)),
+      pack12: pack('pack12', 12, number('pack12Price', 1, 1000000), 3),
+      pack16: pack('pack16', 16, number('pack16Price', 1, 1000000), 4),
     };
+  },
+
+  // Абонементи в порядку показу.
+  get packages() {
+    const p = this.products;
+    return [p.pack4, p.monthly, p.pack12, p.pack16];
   },
 
   // Реквізити для оферти й політики конфіденційності.

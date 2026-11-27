@@ -44,7 +44,8 @@ function details(lang = 'uk') {
 
 function offerUk() {
   const { legal, products, lessonDuration: min } = config;
-  const { single, monthly } = products;
+  const { single } = products;
+  const packs = config.packages;
   const school = config.schoolName;
   return `
 <h1>Публічний договір (оферта) про надання освітніх послуг</h1>
@@ -58,7 +59,7 @@ function offerUk() {
 <h2>2. Терміни</h2>
 <p><b>Заняття</b> — індивідуальне онлайн-заняття з англійської мови тривалістю ${min} хвилин, яке проводить викладач Виконавця для одного Замовника.</p>
 <p><b>Разове заняття</b> — оплата одного Заняття.</p>
-<p><b>Абонемент</b> — передоплачений пакет із ${monthly.lessons} Занять, розрахований на один календарний місяць (орієнтовно 2 Заняття на тиждень), за зниженою ціною одного Заняття.</p>
+<p><b>Абонемент</b> — передоплачений пакет із ${packs.map((p) => p.lessons).join(', ')} Занять (на вибір Замовника), розрахований на один календарний місяць, за зниженою ціною одного Заняття.</p>
 <p><b>Особистий кабінет</b> — розділ Сайту, де Замовник оплачує послуги й бачить кількість оплачених і проведених Занять.</p>
 
 <h2>3. Предмет договору</h2>
@@ -71,7 +72,7 @@ function offerUk() {
 <p>4.1. Вартість послуг на дату цієї редакції:</p>
 <ul>
   <li>Разове заняття (${min} хв) — <b>${uah(single.price)}</b>;</li>
-  <li>Абонемент (${monthly.lessons} занять по ${min} хв) — <b>${uah(monthly.price)}</b> замість ${uah(monthly.fullPrice)} за ${monthly.lessons} разових занять по ${uah(single.price)}.</li>
+${packs.map((p) => `  <li>Абонемент на ${p.lessons} занять по ${min} хв — <b>${uah(p.price)}</b> замість ${uah(p.fullPrice)} за ${p.lessons} разових занять по ${uah(single.price)}.</li>`).join('\n')}
 </ul>
 <p>4.2. Актуальні ціни зазначені на Сайті. Виконавець може змінювати ціни; зміна не стосується вже оплачених Занять.</p>
 <p>4.3. Оплата здійснюється в гривнях, на умовах 100% передоплати — через платіжний сервіс на Сайті або переказом за реквізитами, які Замовник бачить на сторінці оплати чи отримує від Виконавця. Обов'язок Замовника з оплати виконано з моменту зарахування коштів Виконавцю.</p>
@@ -93,7 +94,7 @@ function offerUk() {
 
 <h2>7. Відмова від договору та повернення коштів</h2>
 <p>7.1. Замовник може будь-коли відмовитися від договору, надіславши заяву на email ${fill(config.email, 'email школи')}${config.telegram ? ` або в Telegram ${h(config.telegram)}` : ''}.</p>
-<p>7.2. У такому разі Виконавець повертає вартість непроведених Занять. Для Абонемента вартість одного Заняття — ${uah(monthly.each)} (ціна Абонемента, поділена на кількість Занять у ньому).</p>
+<p>7.2. У такому разі Виконавець повертає вартість непроведених Занять. Для Абонемента вартість одного Заняття — ціна Абонемента, поділена на кількість Занять у ньому (${packs.map((p) => `${p.lessons} занять — ${uah(p.each)}`).join('; ')}).</p>
 <p>7.3. Кошти повертаються тим самим способом, яким було здійснено оплату, протягом 7 робочих днів з дня отримання заяви. Строк зарахування залежить від банку Замовника.</p>
 <p>7.4. Проведені Заняття, а також Заняття, що вважаються проведеними згідно з п. 5.3, поверненню не підлягають.</p>
 
@@ -174,7 +175,8 @@ ${details()}`;
 
 function offerEn() {
   const { legal, products, lessonDuration: min } = config;
-  const { single, monthly } = products;
+  const { single } = products;
+  const packs = config.packages;
   const school = config.schoolName;
   return `
 <h1>Public Offer Agreement for Educational Services</h1>
@@ -188,7 +190,7 @@ function offerEn() {
 <h2>2. Definitions</h2>
 <p><b>Lesson</b> — a one-to-one online English lesson lasting ${min} minutes, taught by the Provider's teacher to one Customer.</p>
 <p><b>Single lesson</b> — payment for one Lesson.</p>
-<p><b>Package</b> — a prepaid bundle of ${monthly.lessons} Lessons intended for one calendar month (about 2 Lessons a week) at a reduced price per Lesson.</p>
+<p><b>Package</b> — a prepaid bundle of ${packs.map((p) => p.lessons).join(', ')} Lessons (the Customer’s choice) intended for one calendar month at a reduced price per Lesson.</p>
 <p><b>Personal account</b> — the section of the Website where the Customer pays for services and sees the number of paid and completed Lessons.</p>
 
 <h2>3. Subject of the agreement</h2>
@@ -201,7 +203,7 @@ function offerEn() {
 <p>4.1. Prices as of the date of this version:</p>
 <ul>
   <li>Single lesson (${min} min) — <b>${UAH(single.price)}</b>;</li>
-  <li>Package (${monthly.lessons} lessons of ${min} min) — <b>${UAH(monthly.price)}</b> instead of ${UAH(monthly.fullPrice)} for ${monthly.lessons} single lessons at ${UAH(single.price)}.</li>
+${packs.map((p) => `  <li>Package of ${p.lessons} lessons of ${min} min — <b>${UAH(p.price)}</b> instead of ${UAH(p.fullPrice)} for ${p.lessons} single lessons at ${UAH(single.price)}.</li>`).join('\n')}
 </ul>
 <p>4.2. Current prices are shown on the Website. The Provider may change prices; changes do not apply to Lessons already paid for.</p>
 <p>4.3. Payment is made in Ukrainian hryvnias, 100% in advance — via the payment service on the Website or by bank transfer using the details shown on the payment page or sent by the Provider. The Customer's payment obligation is fulfilled when the funds are received by the Provider.</p>
@@ -223,7 +225,7 @@ function offerEn() {
 
 <h2>7. Withdrawal and refunds</h2>
 <p>7.1. The Customer may withdraw from the agreement at any time by sending a request to ${fill(config.email, 'school email')}${config.telegram ? ` or via Telegram ${h(config.telegram)}` : ''}.</p>
-<p>7.2. In this case, the Provider refunds the cost of Lessons not yet held. For a Package, the cost of one Lesson is ${UAH(monthly.each)} (the Package price divided by the number of Lessons in it).</p>
+<p>7.2. In this case, the Provider refunds the cost of Lessons not yet held. For a Package, the cost of one Lesson is the Package price divided by the number of Lessons in it (${packs.map((p) => `${p.lessons} lessons — ${UAH(p.each)}`).join('; ')}).</p>
 <p>7.3. Refunds are made by the same method as the payment, within 7 business days of receiving the request. The time for funds to arrive depends on the Customer's bank.</p>
 <p>7.4. Lessons that have been held, and Lessons considered completed under clause 5.3, are not refundable.</p>
 
