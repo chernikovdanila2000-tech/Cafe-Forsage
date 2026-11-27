@@ -239,6 +239,7 @@ app.get('/schedule/:id', (req, res) => {
     freeSlots: slots.grid(teacher.id, user && user.id),
     student,
     canBook: student ? bookingInfo(user).canBook : 0,
+    trial: student ? bookingInfo(user).trial : false,
     isMine: student && user.teacher_id === teacher.id,
   }));
 });
@@ -343,11 +344,13 @@ app.get('/dashboard', requireUser, (req, res) => {
 });
 
 // Що потрібно кабінету учня для запису: його майбутні заняття, вільний час викладача й скільки ще можна записатися.
+// Пробний урок (безкоштовний) — один раз, для учня без оплачених занять.
 function bookingInfo(user) {
   const upcoming = db.bookings.upcoming({ from: slots.now(), studentId: user.id }).map((b) => ({ ...b, canCancel: slots.canCancel(b) }));
-  const canBook = Math.max(db.lessons.balance(user.id).left - upcoming.length, 0);
+  const canBook = Math.max(db.lessons.balance(user.id).left - upcoming.filter((b) => b.kind !== 'trial').length, 0);
+  const trial = canBook <= 0 && !db.bookings.hasTrial(user.id) && !db.orders.forUser(user.id).some((o) => o.status === 'paid');
   const hasSchedule = user.teacher_id ? Object.keys(db.schedule.get(user.teacher_id)).length > 0 : false;
-  return { upcoming, canBook, hasSchedule, freeSlots: user.teacher_id ? slots.grid(user.teacher_id, user.id) : [] };
+  return { upcoming, canBook, trial, hasSchedule, freeSlots: user.teacher_id ? slots.grid(user.teacher_id, user.id) : [] };
 }
 
 const bookingLine = (b) => `${b.date.split('-').reverse().join('.')} о ${b.time}`;
@@ -363,15 +366,18 @@ app.post('/book', requireUser, (req, res) => {
   const back = (msg) => res.redirect(fromSchedule ? `/schedule/${teacherId}?msg=${msg}` : `/dashboard?msg=${msg}#book`);
   const [date, time] = String(req.body.slot || '').split('|');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '') || !slots.HOURS.includes(time)) return back('booking_taken');
-  if (bookingInfo(user).canBook <= 0) return back('booking_no_lessons');
+  const info = bookingInfo(user);
+  const kind = info.canBook > 0 ? 'lesson' : info.trial ? 'trial' : null;
+  if (!kind) return back('booking_no_lessons');
   if (!slots.isFree(teacherId, date, time)) return back('booking_taken');
-  const id = db.bookings.create({ teacherId, studentId: user.id, date, time });
+  const id = db.bookings.create({ teacherId, studentId: user.id, date, time, kind });
   if (!id) return back('booking_taken');
   if (teacherId !== user.teacher_id) db.users.assignTeacher(user.id, teacherId);
   const b = db.bookings.byId(id);
-  notify.send(['📅 <b>Новий запис на заняття</b>', `${bookingLine(b)} · ${b.teacher_name}`, `Учень: ${b.student_name} · ${b.student_phone || b.student_email}`]
+  const title = kind === 'trial' ? `🎁 <b>Новий запис на пробний урок</b> (безкоштовно, ${config.trialMinutes} хв)` : '📅 <b>Новий запис на заняття</b>';
+  notify.send([title, `${bookingLine(b)} · ${b.teacher_name}`, `Учень: ${b.student_name} · ${b.student_phone || b.student_email}`]
     .map((line, i) => (i ? line.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]) : line)));
-  back('booked');
+  back(kind === 'trial' ? 'booked_trial' : 'booked');
 });
 
 // Скасування: учень — не пізніше ніж за 24 год; викладач — свої записи; адміністратор — будь-які.
@@ -478,13 +484,37 @@ function buildPaymentUrl(order, user) {
 
 // «Оплатити»: /pay/single — разове заняття, /pay/monthly — абонемент.
 // Створює замовлення, сповіщає адміністратора й показує спосіб оплати.
+// Спершу питаємо, де зручно зв'язатися (месенджер), потім створюємо замовлення.
+const MESSENGERS = ['telegram', 'viber', 'whatsapp', 'instagram', 'phone'];
+
 app.get('/pay/:product', requireUser, (req, res) => {
   const product = config.products[req.params.product];
   if (!product) return notFound(req, res);
-  const existing = db.orders.forUser(req.user.id).find((o) => o.product === product.id && o.status === 'pending');
-  const order = db.orders.create(req.user.id, product);
-  if (!existing) notify.events.order(order, req.user, views.productName(product.id, 'uk'));
+  res.send(views.payContact(ctx(req), { product, messengers: MESSENGERS }));
+});
 
+app.post('/pay/:product', requireUser, (req, res) => {
+  const product = config.products[req.params.product];
+  if (!product) return notFound(req, res);
+  const method = String(req.body.contact_method || '');
+  const value = field(req.body.contact_value, 100);
+  if (!MESSENGERS.includes(method) || !value) {
+    return res.status(400).send(views.payContact(ctx(req), { product, messengers: MESSENGERS, values: { method, value }, error: t(req.lang, 'pay.contactRequired') }));
+  }
+  db.users.setContact(req.user.id, method, value);
+  const contact = `${t('uk', `messenger.${method}`)}: ${value}`;
+  const existing = db.orders.forUser(req.user.id).find((o) => o.product === product.id && o.status === 'pending');
+  const order = db.orders.create(req.user.id, product, contact);
+  if (!existing) notify.events.order(order, req.user, views.productName(product.id, 'uk'));
+  res.redirect(`/checkout/${order.id}`);
+});
+
+// Сторінка оплати замовлення: зовнішнє посилання на оплату або реквізити.
+app.get('/checkout/:id', requireUser, (req, res) => {
+  const order = db.orders.byId(Number(req.params.id));
+  if (!order || order.user_id !== req.user.id) return notFound(req, res);
+  if (order.status !== 'pending') return res.redirect('/dashboard');
+  const product = config.products[order.product];
   if (config.paymentUrl) {
     try {
       return res.redirect(buildPaymentUrl(order, req.user));

@@ -96,4 +96,11 @@ function makeBrowser(base) {
 
 const plain = (html) => html.replace(/<[^>]+>/g, ' ').replace(/&#39;/g, "'").replace(/\s+/g, ' ');
 
-module.exports = { startSite, makeBrowser, plain };
+// «Оплатити»: вказуємо месенджер для зв'язку й переходимо на сторінку оплати замовлення.
+async function checkout(b, product, contact = { contact_method: 'telegram', contact_value: '@student' }) {
+  const r = await b.request(`/pay/${product}`, { method: 'POST', form: contact });
+  if (!r.location || !r.location.startsWith('/checkout/')) return r;
+  return b.request(r.location);
+}
+
+module.exports = { startSite, makeBrowser, plain, checkout };

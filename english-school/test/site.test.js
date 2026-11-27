@@ -5,7 +5,7 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { startSite, makeBrowser, plain } = require('./helpers');
+const { startSite, makeBrowser, plain, checkout } = require('./helpers');
 
 const ADMIN = { email: 'owner@test.ua', password: 'admin-pass-123' };
 const site = startSite({ ADMIN_EMAIL: ADMIN.email, ADMIN_PASSWORD: ADMIN.password, DEMO_PAYMENTS: 'true' });
@@ -36,11 +36,13 @@ test('головна сторінка: ціни, тексти, мета-теги
   assert.match(page, /Економія 250 ₴/);
   assert.match(page, /Вигідно −250 ₴/);
   assert.match(page, /Шкільна програма/);
-  // Заняття триває 55 хвилин, консультація — 20.
+  // Заняття триває 55 хвилин, пробний урок — 30 і безкоштовно.
   assert.match(page, /55 хвилин з викладачем — 350 ₴/);
   assert.match(page, /350 ₴ \/ 55 хв/);
   assert.match(page, /8 занять по 55 хв — 2 на тиждень/);
-  assert.match(page, /0 ₴ \/ 20 хв/);
+  assert.match(page, /Пробний урок 0 ₴ \/ 30 хв/);
+  assert.match(page, /Пробний урок — 30 хвилин безкоштовно/);
+  assert.doesNotMatch(page, /консультац/i);
   assert.doesNotMatch(page, /60 хв/);
   assert.match(plain((await b.request('/offer')).text), /тривалістю 55 хвилин/);
   assert.match(text, /<html lang="uk">/);
@@ -129,10 +131,21 @@ test('оплата для незалогіненого веде на вхід і
     form: { name: 'Ірина', email: 'iryna@test.ua', phone: '0501234567', password: 'secret123', agree: '1', next: '/pay/monthly' },
   });
   assert.equal(reg.location, '/pay/monthly');
-  const checkout = plain((await b.request('/pay/monthly')).text);
-  assert.match(checkout, /Абонемент на місяць/);
-  assert.match(checkout, /2\s550 ₴/);
-  assert.match(checkout, /Економія 250 ₴/);
+  // Спершу — питання, де зв'язатися; без месенджера замовлення не створюється.
+  const form = (await b.request('/pay/monthly')).text;
+  assert.match(plain(form), /Де з вами зручніше зв'язатися\?/);
+  assert.match(form, /name="contact_method" value="viber"/);
+  const empty = await b.request('/pay/monthly', { method: 'POST', form: { contact_method: 'telegram', contact_value: ' ' } });
+  assert.equal(empty.status, 400);
+  assert.match(plain(empty.text), /Оберіть месенджер і вкажіть нік або номер/);
+  const bad = await b.request('/pay/monthly', { method: 'POST', form: { contact_method: 'fax', contact_value: '123' } });
+  assert.equal(bad.status, 400);
+  const page = (await checkout(b, 'monthly', { contact_method: 'viber', contact_value: '+380501234567' })).text;
+  const summary = plain(page);
+  assert.match(summary, /Зв'язок Viber: \+380501234567/);
+  assert.match(summary, /Абонемент на місяць/);
+  assert.match(summary, /2\s550 ₴/);
+  assert.match(summary, /Економія 250 ₴/);
 });
 
 let adminBrowser;
@@ -209,13 +222,16 @@ test('оплата: замовлення без дублів, адмін під�
   telegram.messages.length = 0;
 
   // DEMO_PAYMENTS увімкнено в тесті, тож спершу перевіряємо демо-шлях на окремому учні.
-  const page = plain((await b.request('/pay/monthly')).text);
+  const page = plain((await checkout(b, 'monthly')).text);
   assert.match(page, /2\s550 ₴/);
   await tick();
-  assert.ok(telegram.messages.some((m) => m.includes('Нове замовлення')), 'сповіщення про замовлення');
+  assert.ok(telegram.messages.some((m) => m.includes('Нове замовлення') && m.includes('Telegram: @student')), 'сповіщення про замовлення з контактом');
+  assert.match(plain((await adminBrowser.request('/admin/orders')).text), /Telegram: @student/);
+  // Наступного разу месенджер уже підставлений.
+  assert.match((await b.request('/pay/single')).text, /value="@student"/);
 
   // Повторне відкриття оплати не створює дубль замовлення.
-  await b.request('/pay/monthly');
+  await checkout(b, 'monthly');
   const orders = plain((await adminBrowser.request('/admin/orders')).text);
   assert.equal((orders.match(/maria@test\.ua/g) || []).length, 1);
 
@@ -243,8 +259,8 @@ test('оплата: замовлення без дублів, адмін під�
 test('демо-оплата працює лише для власного замовлення', async () => {
   const a = browser();
   await a.request('/register', { method: 'POST', form: { name: 'Андрій', email: 'andrii@test.ua', phone: '+380671234567', password: 'secret123', agree: '1' } });
-  const checkout = (await a.request('/pay/single')).text;
-  const orderId = checkout.match(/\/pay\/demo\/(\d+)/)[1];
+  const page = (await checkout(a, 'single')).text;
+  const orderId = page.match(/\/pay\/demo\/(\d+)/)[1];
   const stranger = browser();
   await stranger.request('/login', { method: 'POST', form: { email: 'taras@test.ua', password: 'secret123' } });
   assert.equal((await stranger.request(`/pay/demo/${orderId}`, { method: 'POST' })).status, 404);

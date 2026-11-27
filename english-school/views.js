@@ -23,7 +23,7 @@ const LEVEL_CODES = ['unknown', 'A1', 'A2', 'B1', 'B2', 'C1'];
 const MESSAGE_TYPES = {
   registered: 'success', loggedout: 'info', login_required: 'info', profile_saved: 'success',
   password_changed: 'success', paid: 'success', payment_pending: 'success', too_many: 'error', teacher_chosen: 'success',
-  booked: 'success', booking_cancelled: 'info', booking_taken: 'error', booking_no_lessons: 'error', booking_too_late: 'error',
+  booked: 'success', booked_trial: 'success', booking_cancelled: 'info', booking_taken: 'error', booking_no_lessons: 'error', booking_too_late: 'error',
   'teacher.scheduleSaved': 'success', 'teacher.bookingCancelled': 'info', 'admin.bookingCancelled': 'info',
   'admin.saved': 'success', 'admin.deleted': 'info', 'admin.held': 'success', 'admin.undone': 'info',
   'admin.confirmed': 'success', 'admin.cancelled': 'info', 'admin.settings.tgTestSent': 'success',
@@ -159,7 +159,7 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=14">
+<link rel="stylesheet" href="/styles.css?v=15">
 ${analytics(events)}
 </head>
 <body class="${h(bodyClass)}">
@@ -331,13 +331,14 @@ function home(ctx, { teachers, reviews }) {
     <div class="pricing">
       <article class="price-card">
         <h3>${T('pricing.trial.title')}</h3>
-        <p class="price">${money(0, lang)}<small> ${T('pricing.trial.per', { min: config.consultationMinutes })}</small></p>
+        <p class="price">${money(0, lang)}<small> ${T('pricing.trial.per', { min: config.trialMinutes })}</small></p>
+        <p class="muted small">${T('trial.about', { min: config.trialMinutes })}</p>
         <ul>
           <li>${icon.check} ${T('pricing.trial.f1')}</li>
           <li>${icon.check} ${T('pricing.trial.f2')}</li>
           <li>${icon.check} ${T('pricing.trial.f3')}</li>
         </ul>
-        <a class="btn btn-ghost" href="#trial">${T('pricing.trial.cta')}</a>
+        <a class="btn btn-ghost" href="${ctx.hasTeachers ? '#teachers' : '#trial'}">${T('pricing.trial.cta')}</a>
       </article>
       <article class="price-card">
         <h3>${T('pricing.single.title')}</h3>
@@ -528,7 +529,15 @@ function slotGrid(days, lang, { bookable, teacherId }) {
 
 const hasFree = (days) => days.some((d) => d.times.some((s) => s.status === 'free'));
 
-function dashboard(ctx, { balance, orders, teacher, teachers = [], upcoming = [], canBook = 0, hasSchedule = false, freeSlots = [] }) {
+// Підказка про безкоштовний пробний урок у блоці запису.
+const trialNote = (lang) => `
+  <div class="booking-note booking-trial">
+    <p><b>${t(lang, 'trial.noteTitle', { min: config.trialMinutes })}</b></p>
+    <p class="small">${t(lang, 'trial.about', { min: config.trialMinutes })}</p>
+    <p class="small">${t(lang, 'trial.pick')}</p>
+  </div>`;
+
+function dashboard(ctx, { balance, orders, teacher, teachers = [], upcoming = [], canBook = 0, trial = false, hasSchedule = false, freeSlots = [] }) {
   const { lang, user, msg } = ctx;
   const T = (key, vars) => t(lang, key, vars);
   const { single, monthly } = config.products;
@@ -574,6 +583,7 @@ function dashboard(ctx, { balance, orders, teacher, teachers = [], upcoming = []
           ${upcoming.map((b) => `
             <div class="booking-row">
               <b>${h(capital(dayLabel(b.date, lang)))} · ${h(b.time)}</b>
+              ${b.kind === 'trial' ? `<span class="tag tag-accent">${T('trial.badge', { min: config.trialMinutes })}</span>` : ''}
               <span class="muted small">${h(b.teacher_name)}</span>
               ${b.canCancel
                 ? `<form method="post" action="/bookings/${b.id}/cancel" data-confirm="${h(T('book.confirmCancel'))}"><button class="btn btn-small btn-ghost">${T('book.cancel')}</button></form>`
@@ -581,9 +591,9 @@ function dashboard(ctx, { balance, orders, teacher, teachers = [], upcoming = []
             </div>`).join('')}
         </div>` : ''}
       ${!hasSchedule ? `<p class="booking-note">${T('book.noSchedule')}</p>` : `
-        ${canBook <= 0 ? `<p class="booking-note">${T('book.payFirst')}</p>` : `<p class="small"><b>${T('book.left', { n: canBook })}</b></p>`}
+        ${canBook > 0 ? `<p class="small"><b>${T('book.left', { n: canBook })}</b></p>` : trial ? trialNote(lang) : `<p class="booking-note">${T('book.payFirst')}</p>`}
         ${!hasFree(freeSlots) ? `<p class="booking-note">${T('book.noFree')}</p>` : ''}
-        ${freeSlots.length ? slotGrid(freeSlots, lang, { bookable: canBook > 0 }) : ''}`}
+        ${freeSlots.length ? slotGrid(freeSlots, lang, { bookable: canBook > 0 || trial }) : ''}`}
     </div>` : ''}
 
     ${teachers.length ? `
@@ -671,6 +681,35 @@ function dashboard(ctx, { balance, orders, teacher, teachers = [], upcoming = []
 
 // ---------- Оплата ----------
 
+// Перед оплатою: куди з учнем зв'язуватися.
+function payContact(ctx, { product, messengers, values = {}, error }) {
+  const { lang, user } = ctx;
+  const T = (key, vars) => t(lang, key, vars);
+  const method = values.method || user.contact_method || 'telegram';
+  const value = values.value ?? user.contact_value ?? '';
+  const body = `
+<section class="auth">
+  <div class="auth-card checkout">
+    <p class="eyebrow">${T('checkout.eyebrow')}</p>
+    <h1>${h(productName(product.id, lang))}</h1>
+    <div class="checkout-row checkout-total"><span>${T('checkout.total')}</span><b>${money(product.price, lang)}</b></div>
+    <form method="post" action="/pay/${product.id}" class="form">
+      <p class="checkout-label">${T('pay.contactTitle')}</p>
+      <p class="muted small">${T('pay.contactLead')}</p>
+      ${error ? `<div class="flash flash-error">${h(error)}</div>` : ''}
+      <div class="messenger-options">
+        ${messengers.map((m) => `
+        <label class="messenger"><input type="radio" name="contact_method" value="${m}"${m === method ? ' checked' : ''} required> <span>${T(`messenger.${m}`)}</span></label>`).join('')}
+      </div>
+      <label>${T('pay.contactValue')}<input name="contact_value" value="${h(value)}" maxlength="100" required placeholder="${h(T('pay.contactPlaceholder'))}" autocomplete="tel"></label>
+      <button class="btn btn-accent btn-block" type="submit">${T('pay.continue')}</button>
+    </form>
+    <p class="auth-switch"><a href="/dashboard">${T('checkout.back')}</a></p>
+  </div>
+</section>`;
+  return layout(ctx, { title: T('checkout.eyebrow'), body, bodyClass: 'page-auth', noindex: true });
+}
+
 function checkout(ctx, { product, order, mode }) {
   const { lang, user } = ctx;
   const T = (key, vars) => t(lang, key, vars);
@@ -701,6 +740,7 @@ function checkout(ctx, { product, order, mode }) {
     <h1>${h(productName(product.id, lang))}</h1>
     <div class="checkout-row"><span>${T('checkout.student')}</span><b>${h(user.name)}<br><span class="muted small">${h(user.email)}</span></b></div>
     <div class="checkout-row"><span>${T('checkout.number')}</span><b>№ ${order.id}</b></div>
+    ${order.contact ? `<div class="checkout-row"><span>${T('pay.contactShort')}</span><b>${h(order.contact)}</b></div>` : ''}
     <div class="checkout-row"><span>${T('checkout.lessons')}</span><b>${h(lessonsLabel(order.lessons, lang))} · ${config.lessonDuration} ${T('unit.min')}</b></div>
     ${product.save && product.id === 'monthly' ? `<div class="checkout-row"><span>${T('checkout.discount')}</span><b>${money(product.save, lang)} (<s>${money(product.fullPrice, lang)}</s>)</b></div>` : ''}
     <div class="checkout-row checkout-total"><span>${T('checkout.total')}</span><b>${money(order.amount, lang)}</b></div>
@@ -863,7 +903,7 @@ function ordersTable(orders, lang) {
           <tr class="${o.status === 'pending' ? 'row-new' : ''}">
             <td>${o.id}</td>
             <td>${h(o.user_name)}<br><span class="muted small">${h(o.user_email)}</span></td>
-            <td class="nowrap">${tel(o.user_phone)}</td>
+            <td class="nowrap">${tel(o.user_phone)}${o.contact ? `<br><span class="small">${h(o.contact)}</span>` : ''}</td>
             <td>${h(productName(o.product, lang))}<br><span class="muted small">${h(lessonsLabel(o.lessons, lang))}</span></td>
             <td class="nowrap"><b>${money(o.amount, lang)}</b></td>
             <td class="nowrap">${dateTime(o.created_at, lang)}</td>
@@ -1147,7 +1187,7 @@ function studentsList(students, lang) {
 }
 
 // Сторінка «Вільний час» викладача.
-function schedulePage(ctx, { teacher, hasSchedule, freeSlots, student, canBook, isMine }) {
+function schedulePage(ctx, { teacher, hasSchedule, freeSlots, student, canBook, trial, isMine }) {
   const { lang, user } = ctx;
   const T = (key, vars) => t(lang, key, vars);
   const { single, monthly } = config.products;
@@ -1156,9 +1196,13 @@ function schedulePage(ctx, { teacher, hasSchedule, freeSlots, student, canBook, 
   if (!user) {
     note = `
       <div class="booking-note">
+        <p><b>${T('trial.noteTitle', { min: config.trialMinutes })}</b></p>
+        <p class="small">${T('trial.about', { min: config.trialMinutes })}</p>
         <p>${T('schedule.loginFirst')}</p>
         <div class="hero-actions"><a class="btn btn-dark btn-small" href="/register?next=${next}">${T('auth.toRegister')}</a><a class="btn btn-ghost btn-small" href="/login?next=${next}">${T('auth.toLogin')}</a></div>
       </div>`;
+  } else if (student && canBook <= 0 && trial) {
+    note = `${trialNote(lang)}${isMine ? '' : `<p class="small">${h(T('schedule.willChoose', { name: teacher.name }))}</p>`}`;
   } else if (student && canBook <= 0) {
     note = `
       <div class="booking-note">
@@ -1171,7 +1215,7 @@ function schedulePage(ctx, { teacher, hasSchedule, freeSlots, student, canBook, 
   } else if (student) {
     note = `<p class="small"><b>${T('book.left', { n: canBook })}</b>${isMine ? '' : ` · ${h(T('schedule.willChoose', { name: teacher.name }))}`}</p>`;
   }
-  const bookable = student && canBook > 0;
+  const bookable = student && (canBook > 0 || trial);
   const body = `
 <section class="dash">
   <div class="container container-narrow">
@@ -1207,7 +1251,7 @@ function bookingsTable(list, lang, { showTeacher }) {
         <tbody>
           ${list.map((b) => `
           <tr>
-            <td class="nowrap"><b>${h(capital(dayLabel(b.date, lang)))}</b> · ${h(b.time)}</td>
+            <td class="nowrap"><b>${h(capital(dayLabel(b.date, lang)))}</b> · ${h(b.time)}${b.kind === 'trial' ? `<br><span class="tag tag-accent">${t(lang, 'trial.badge', { min: config.trialMinutes })}</span>` : ''}</td>
             <td>${h(b.student_name)}<br><span class="muted small">${h(b.student_email)}</span></td>
             <td class="nowrap">${tel(b.student_phone)}</td>
             ${showTeacher ? `<td>${h(b.teacher_name)}</td>` : ''}
@@ -1290,6 +1334,6 @@ function adminSchedule(ctx, { upcoming, teachers, counts }) {
 module.exports = {
   home, thanks, authPage, forgot, dashboard, checkout, account, legalPage, notFound, adminOnly,
   adminOverview, adminRequests, adminOrders, adminStudents, adminTeachers, adminReviews, adminSettings,
-  teacherHome, adminSchedule, schedulePage,
+  teacherHome, adminSchedule, schedulePage, payContact,
   LEVEL_CODES, productName,
 };

@@ -132,6 +132,12 @@ db.exec(`
   -- Один і той самий час викладача не можна зайняти двічі.
   CREATE UNIQUE INDEX IF NOT EXISTS bookings_slot ON bookings (teacher_id, date, time) WHERE status = 'booked';
 `);
+// Пробний урок (безкоштовний, 30 хв) — окремий вид запису.
+addColumn('bookings', 'kind', "TEXT NOT NULL DEFAULT 'lesson'");
+// Куди зв'язуватися з учнем (месенджер і нік / номер) — питаємо під час оплати.
+addColumn('users', 'contact_method', 'TEXT');
+addColumn('users', 'contact_value', 'TEXT');
+addColumn('orders', 'contact', 'TEXT');
 
 
 // ---------- Пароли ----------
@@ -198,6 +204,9 @@ const users = {
     // Колишній викладач більше не веде учнів.
     if (!isTeacher) db.prepare('UPDATE users SET teacher_id = NULL WHERE teacher_id = ?').run(id);
   },
+  setContact(id, method, value) {
+    db.prepare('UPDATE users SET contact_method = ?, contact_value = ? WHERE id = ?').run(method, value, id);
+  },
   assignTeacher(studentId, teacherId) {
     const teacher = teacherId ? db.prepare('SELECT id FROM users WHERE id = ? AND is_teacher = 1').get(teacherId) : null;
     db.prepare('UPDATE users SET teacher_id = ? WHERE id = ?').run(teacher ? teacher.id : null, studentId);
@@ -244,19 +253,19 @@ const sessions = {
 // ---------- Замовлення (разове заняття або абонемент) ----------
 
 const orders = {
-  create(userId, product) {
+  create(userId, product, contact = null) {
     // Не плодимо однакові неоплачені замовлення: повертаємо вже відкрите.
     const open = db.prepare("SELECT * FROM orders WHERE user_id = ? AND product = ? AND status = 'pending'").get(userId, product.id);
-    // Ціна могла змінитися в налаштуваннях — оновлюємо суму відкритого замовлення.
+    // Ціна чи контакт могли змінитися — оновлюємо відкрите замовлення.
     if (open) {
-      if (open.amount !== product.price || open.lessons !== product.lessons) {
-        db.prepare('UPDATE orders SET amount = ?, lessons = ? WHERE id = ?').run(product.price, product.lessons, open.id);
-        return { ...open, amount: product.price, lessons: product.lessons };
+      const next = { ...open, amount: product.price, lessons: product.lessons, contact: contact || open.contact };
+      if (next.amount !== open.amount || next.lessons !== open.lessons || next.contact !== open.contact) {
+        db.prepare('UPDATE orders SET amount = ?, lessons = ?, contact = ? WHERE id = ?').run(next.amount, next.lessons, next.contact, open.id);
       }
-      return open;
+      return next;
     }
-    const result = db.prepare('INSERT INTO orders (user_id, product, lessons, amount) VALUES (?, ?, ?, ?)')
-      .run(userId, product.id, product.lessons, product.price);
+    const result = db.prepare('INSERT INTO orders (user_id, product, lessons, amount, contact) VALUES (?, ?, ?, ?, ?)')
+      .run(userId, product.id, product.lessons, product.price, contact);
     return db.prepare('SELECT * FROM orders WHERE id = ?').get(result.lastInsertRowid);
   },
   byId(id) {
@@ -391,9 +400,9 @@ const BOOKING_JOIN = 'FROM bookings b JOIN users s ON s.id = b.student_id JOIN u
 
 const bookings = {
   // Повертає id запису або null, якщо цей час уже зайняли.
-  create({ teacherId, studentId, date, time }) {
+  create({ teacherId, studentId, date, time, kind = 'lesson' }) {
     try {
-      return Number(db.prepare('INSERT INTO bookings (teacher_id, student_id, date, time) VALUES (?, ?, ?, ?)').run(teacherId, studentId, date, time).lastInsertRowid);
+      return Number(db.prepare('INSERT INTO bookings (teacher_id, student_id, date, time, kind) VALUES (?, ?, ?, ?, ?)').run(teacherId, studentId, date, time, kind).lastInsertRowid);
     } catch (err) {
       if (/UNIQUE/.test(err.message)) return null;
       throw err;
@@ -412,6 +421,10 @@ const bookings = {
     if (teacherId) { where.push('b.teacher_id = :teacherId'); params.teacherId = teacherId; }
     if (studentId) { where.push('b.student_id = :studentId'); params.studentId = studentId; }
     return db.prepare(`SELECT ${BOOKING_FIELDS} ${BOOKING_JOIN} WHERE ${where.join(' AND ')} ORDER BY b.date, b.time`).all(params);
+  },
+  // Чи учень уже використав пробний урок (запис, який не скасовано).
+  hasTrial(studentId) {
+    return Boolean(db.prepare("SELECT 1 FROM bookings WHERE student_id = ? AND kind = 'trial' AND status != 'cancelled'").get(studentId));
   },
   // Зайняті години викладача: «YYYY-MM-DD HH:MM» → id учня, який записався.
   taken(teacherId, fromDate, toDate) {

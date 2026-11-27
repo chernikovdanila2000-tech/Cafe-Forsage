@@ -75,7 +75,7 @@ function offerUk() {
 </ul>
 <p>4.2. Актуальні ціни зазначені на Сайті. Виконавець може змінювати ціни; зміна не стосується вже оплачених Занять.</p>
 <p>4.3. Оплата здійснюється в гривнях, на умовах 100% передоплати — через платіжний сервіс на Сайті або переказом за реквізитами, які Замовник бачить на сторінці оплати чи отримує від Виконавця. Обов'язок Замовника з оплати виконано з моменту зарахування коштів Виконавцю.</p>
-<p>4.4. Безкоштовна консультація для визначення рівня не є Заняттям і не потребує оплати.</p>
+<p>4.4. Безкоштовний пробний урок тривалістю ${config.trialMinutes} хвилин (знайомство, визначення рівня, міні-урок) надається один раз кожному Замовнику, не є оплачуваним Заняттям і не потребує оплати.</p>
 
 <h2>5. Порядок надання послуг</h2>
 <p>5.1. Після оплати викладач зв'язується із Замовником за телефоном або email, указаним в Особистому кабінеті, і погоджує розклад Занять.</p>
@@ -136,7 +136,8 @@ function privacyUk() {
 <h2>2. Які дані ми збираємо</h2>
 <ul>
   <li>під час реєстрації: ім'я, email, номер телефону, рівень англійської;</li>
-  <li>у заявці на консультацію: ім'я, телефон або email, мету навчання;</li>
+  <li>у заявці на пробний урок: ім'я, телефон або email, мету навчання;</li>
+  <li>під час оплати: месенджер і нік або номер для зв'язку;</li>
   <li>історію оплат і кількість проведених занять;</li>
   <li>джерело, з якого ви перейшли на сайт (наприклад, рекламна кампанія).</li>
 </ul>
@@ -148,7 +149,7 @@ function privacyUk() {
   <li>щоб створити й підтримувати ваш особистий кабінет;</li>
   <li>щоб викладач міг зв'язатися з вами й погодити розклад занять;</li>
   <li>щоб обліковувати оплати й проведені заняття;</li>
-  <li>щоб відповісти на заявку на консультацію.</li>
+  <li>щоб відповісти на заявку на пробний урок і зв'язатися з вами в обраному месенджері.</li>
 </ul>
 <p>Ми не продаємо й не передаємо ваші дані третім особам для реклами.</p>
 
@@ -204,7 +205,7 @@ function offerEn() {
 </ul>
 <p>4.2. Current prices are shown on the Website. The Provider may change prices; changes do not apply to Lessons already paid for.</p>
 <p>4.3. Payment is made in Ukrainian hryvnias, 100% in advance — via the payment service on the Website or by bank transfer using the details shown on the payment page or sent by the Provider. The Customer's payment obligation is fulfilled when the funds are received by the Provider.</p>
-<p>4.4. The free level-check consultation is not a Lesson and requires no payment.</p>
+<p>4.4. The free ${config.trialMinutes}-minute trial lesson (introduction, level check, mini-lesson) is provided once per Customer, is not a paid Lesson and requires no payment.</p>
 
 <h2>5. Provision of services</h2>
 <p>5.1. After payment, the teacher contacts the Customer by the phone number or email given in the Personal account and agrees on the lesson schedule.</p>
@@ -264,7 +265,8 @@ function privacyEn() {
 <h2>2. What data we collect</h2>
 <ul>
   <li>when you sign up: your name, email, phone number and English level;</li>
-  <li>in a consultation request: your name, phone or email, and your learning goal;</li>
+  <li>in a trial lesson request: your name, phone or email, and your learning goal;</li>
+  <li>at checkout: your messenger and username or number for contact;</li>
   <li>your payment history and the number of lessons held;</li>
   <li>the source you came to the website from (for example, an ad campaign).</li>
 </ul>
@@ -276,7 +278,7 @@ function privacyEn() {
   <li>to create and maintain your personal account;</li>
   <li>so that your teacher can contact you and agree on a lesson schedule;</li>
   <li>to keep track of payments and lessons held;</li>
-  <li>to respond to consultation requests.</li>
+  <li>to respond to trial lesson requests and contact you in the messenger you chose.</li>
 </ul>
 <p>We do not sell your data or share it with third parties for advertising.</p>
 

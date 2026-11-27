@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { startSite, makeBrowser, plain } = require('./helpers');
+const { startSite, makeBrowser, plain, checkout } = require('./helpers');
 
 const volume = fs.mkdtempSync(path.join(os.tmpdir(), 'inkwell-volume-'));
 const ADMIN = { email: 'owner@test.ua', password: 'admin-pass-123' };
@@ -46,7 +46,7 @@ test('cookie входу захищені (Secure, HttpOnly)', async () => {
 test('без способу оплати: замовлення приймається, демо-кнопки немає', async () => {
   const b = browser();
   await b.request('/register', { method: 'POST', form: { name: 'Іван', email: 'ivan@test.ua', phone: '+380501112244', password: 'secret123', agree: '1' } });
-  const page = (await b.request('/pay/single')).text;
+  const page = (await checkout(b, 'single')).text;
   assert.doesNotMatch(page, /\/pay\/demo\//);
   assert.match(plain(page), /Замовлення прийнято/);
   const id = page.match(/№ (\d+)/)[1];
@@ -62,7 +62,7 @@ test('оплата за реквізитами та за посиланням', 
 
   const b = browser();
   await b.request('/register', { method: 'POST', form: { name: 'Петро', email: 'petro@test.ua', phone: '+380501112255', password: 'secret123', agree: '1' } });
-  const details = plain((await b.request('/pay/monthly')).text);
+  const details = plain((await checkout(b, 'monthly')).text);
   assert.match(details, /IBAN UA12 3456/);
   assert.match(details, /замовлення № \d+/);
   assert.match(details, /2\s800 ₴/);
@@ -71,7 +71,7 @@ test('оплата за реквізитами та за посиланням', 
     method: 'POST',
     form: { ...base, paymentDetails: 'IBAN UA12 3456', paymentUrl: 'https://pay.example.com/i?order={payment}&sum={amount}' },
   });
-  const redirect = await b.request('/pay/single');
+  const redirect = await checkout(b, 'single');
   assert.match(redirect.location, /^https:\/\/pay\.example\.com\/i\?order=\d+&sum=350$/);
 });
 

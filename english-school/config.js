@@ -48,7 +48,7 @@ const config = {
   tagline: process.env.SCHOOL_TAGLINE || 'School of English',
   currency: '₴',
   lessonDuration: Number(process.env.LESSON_DURATION) || 55,
-  consultationMinutes: 20,
+  trialMinutes: 30, // безкоштовний пробний урок
 
   // На Railway сайт завжди працює через HTTPS, тож cookie передаються лише захищеним каналом.
   secureCookies: production || process.env.SECURE_COOKIES === 'true',

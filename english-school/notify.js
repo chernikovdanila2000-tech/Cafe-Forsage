@@ -49,7 +49,7 @@ const site = () => config.siteUrl || '';
 
 const events = {
   request: (r) => send([
-    '📩 <b>Нова заявка на консультацію</b>',
+    '📩 <b>Нова заявка на пробний урок</b>',
     `Ім'я: ${esc(r.name)}`,
     `Контакт: ${esc(r.contact)}`,
     r.message && `Повідомлення: ${esc(r.message)}`,
@@ -66,12 +66,14 @@ const events = {
     '🧾 <b>Нове замовлення</b> — очікує оплати',
     `№ ${o.id}: ${esc(productName)}, ${o.amount} ₴`,
     `${esc(u.name)} · ${esc(u.phone)} · ${esc(u.email)}`,
+    o.contact && `Зв'язок: ${esc(o.contact)}`,
     site() && `Підтвердити оплату: ${site()}/admin/orders`,
   ]),
   paid: (o, u, productName) => send([
     '💰 <b>Оплачено</b>',
     `№ ${o.id}: ${esc(productName)}, ${o.amount} ₴`,
     `${esc(u.name)} · ${esc(u.phone)}`,
+    o.contact && `Зв'язок: ${esc(o.contact)}`,
     'Зв\'яжіться з учнем, щоб узгодити розклад.',
   ]),
 };

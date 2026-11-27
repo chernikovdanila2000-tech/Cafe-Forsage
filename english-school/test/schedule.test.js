@@ -2,7 +2,7 @@
 
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { startSite, makeBrowser, plain } = require('./helpers');
+const { startSite, makeBrowser, plain, checkout } = require('./helpers');
 
 const ADMIN = { email: 'owner@test.ua', password: 'admin-pass-123' };
 const site = startSite({ ADMIN_EMAIL: ADMIN.email, ADMIN_PASSWORD: ADMIN.password });
@@ -19,7 +19,7 @@ async function register(b, name, email) {
 }
 
 async function pay(b, product = 'monthly') {
-  const id = (await b.request(`/pay/${product}`)).text.match(/№ (\d+)/)[1];
+  const id = (await checkout(b, product)).text.match(/№ (\d+)/)[1];
   await admin.request(`/admin/orders/${id}/confirm`, { method: 'POST' });
 }
 
@@ -62,14 +62,27 @@ test('викладач заповнює графік (неправильні г�
   assert.doesNotMatch(saved, /03:00/);
 });
 
-test('без оплати записатися не можна', async () => {
+test('без оплати — один безкоштовний пробний урок', async () => {
   await student.request('/choose-teacher', { method: 'POST', form: { teacher_id: String(ids.teacher) } });
   const dash = (await student.request('/dashboard')).text;
   assert.match(plain(dash), /Записатися на заняття/);
-  assert.match(plain(dash), /оплатіть разове заняття або абонемент/);
-  assert.equal(slotsOf(dash).length, 0);
-  const r = await student.request('/book', { method: 'POST', form: { slot: '2099-01-01|10:00' } });
-  assert.match(r.location, /booking_no_lessons/);
+  assert.match(plain(dash), /Пробний урок — безкоштовно, 30 хв/);
+  const free = slotsOf(dash);
+  assert.ok(free.length > 0, 'на пробний можна обрати час');
+  site.telegram.messages.length = 0;
+  const r = await student.request('/book', { method: 'POST', form: { slot: free.at(-30) } });
+  assert.equal(r.location, '/dashboard?msg=booked_trial#book');
+  await new Promise((res) => setTimeout(res, 200));
+  assert.ok(site.telegram.messages.some((m) => m.includes('пробний урок') && m.includes('Максим')));
+  const after = (await student.request('/dashboard')).text;
+  assert.match(plain(after), /Пробний · 30 хв/);
+  // Другий пробний — не можна: далі тільки після оплати.
+  assert.match(plain(after), /оплатіть разове заняття або абонемент/);
+  assert.equal(slotsOf(after).length, 0);
+  const again = await student.request('/book', { method: 'POST', form: { slot: free.at(-29) } });
+  assert.match(again.location, /booking_no_lessons/);
+  // Викладач бачить позначку пробного уроку.
+  assert.match(plain((await teacher.request('/teacher')).text), /Пробний · 30 хв/);
 });
 
 test('учень записується; час зникає для інших; ліміт за оплаченими заняттями', async () => {
@@ -119,8 +132,8 @@ test('скасування: учень — не пізніше ніж за 24 г
   assert.match(plain(dash), /Скасувати можна не пізніше ніж за 24 год/);
 
   // Спроба скасувати близький запис напряму — відмова.
-  const near = (await admin.request('/admin/schedule')).text.match(/\/bookings\/(\d+)\/cancel/g).map((x) => x.match(/\d+/)[0]);
-  const nearId = near.find((id) => !cancelIds.includes(id) && id !== '1');
+  const rows = (await admin.request('/admin/schedule')).text.split('<tr>').filter((row) => row.includes('Софія'));
+  const nearId = rows.map((row) => row.match(/\/bookings\/(\d+)\/cancel/)[1]).find((id) => !cancelIds.includes(id));
   const late = await other.request(`/bookings/${nearId}/cancel`, { method: 'POST' });
   assert.match(late.location, /booking_too_late/);
 
@@ -156,13 +169,14 @@ test('кнопка «Вільний час»: сторінка для гостя
   assert.equal(slotsOf(guest).length, 0);
   assert.match(guest, new RegExp(`/register\\?next=%2Fschedule%2F${ids.teacher}`));
 
-  // Новий учень без викладача й без оплати: бачить кнопки оплати.
+  assert.match(plain(guest), /Пробний урок — 30 хвилин безкоштовно/);
+
+  // Новий учень без викладача й без оплати: може обрати час для пробного уроку.
   const nobody = browser();
   await register(nobody, 'Тарас', 'taras@test.ua');
   const unpaid = (await nobody.request(`/schedule/${ids.teacher}`)).text;
-  assert.match(plain(unpaid), /оплатіть разове заняття або абонемент/);
-  assert.match(unpaid, /href="\/pay\/monthly"/);
-  assert.equal(slotsOf(unpaid).length, 0);
+  assert.match(plain(unpaid), /Пробний урок — безкоштовно, 30 хв/);
+  assert.ok(slotsOf(unpaid).length > 0);
 
   // Після оплати записується прямо зі сторінки — і викладач стає його.
   await pay(nobody, 'single');

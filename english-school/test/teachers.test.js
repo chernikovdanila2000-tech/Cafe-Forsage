@@ -4,7 +4,7 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { startSite, makeBrowser, plain } = require('./helpers');
+const { startSite, makeBrowser, plain, checkout } = require('./helpers');
 
 const ADMIN = { email: 'owner@test.ua', password: 'admin-pass-123' };
 const site = startSite({ ADMIN_EMAIL: ADMIN.email, ADMIN_PASSWORD: ADMIN.password });
@@ -114,7 +114,7 @@ test('адмін призначає викладача вручну', async () =
 
 test('викладач відмічає заняття лише своїм учням', async () => {
   for (const b of [student, stranger]) {
-    const order = (await b.request('/pay/single')).text.match(/№ (\d+)/)[1];
+    const order = (await checkout(b, 'single')).text.match(/№ (\d+)/)[1];
     await admin.request(`/admin/orders/${order}/confirm`, { method: 'POST' });
   }
   // Максим — учень teacher2, тож teacher не може списати йому заняття.
