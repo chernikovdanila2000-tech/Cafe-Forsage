@@ -245,6 +245,12 @@ test('запис одразу на кілька годин і скасуванн
   assert.match(plain((await b.request('/dashboard')).text), /Скасовано/i);
   assert.equal((await browser().request(`/orders/${orderId}/cancel`, { method: 'POST' })).location.startsWith('/login'), true);
 
+  // Сповіщення про замовлення підказує, коли учень обере час.
+  site.telegram.messages.length = 0;
+  await checkout(b, 'single');
+  await new Promise((res) => setTimeout(res, 200));
+  assert.ok(site.telegram.messages.some((m) => m.includes('Нове замовлення') && m.includes('обере в графіку після підтвердження оплати')));
+
   // Абонемент — 8 занять: відмічаємо 4 години й записуємося одним натисканням.
   await b.request('/choose-teacher', { method: 'POST', form: { teacher_id: String(ids.teacher) } });
   await pay(b);

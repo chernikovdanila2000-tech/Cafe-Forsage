@@ -62,11 +62,16 @@ const events = {
     `Телефон: ${esc(u.phone)}`,
     u.source && `Джерело: ${esc(u.source)}`,
   ]),
-  order: (o, u, productName) => send([
+  // extra: { teacher, bookings: ['28.11 о 10:00 (пробний)', …] } — щоб одразу було видно викладача й записи учня.
+  order: (o, u, productName, extra = {}) => send([
     '🧾 <b>Нове замовлення</b> — очікує оплати',
     `№ ${o.id}: ${esc(productName)}, ${o.amount} ₴`,
     `${esc(u.name)} · ${esc(u.phone)} · ${esc(u.email)}`,
     o.contact && `Зв'язок: ${esc(o.contact)}`,
+    extra.teacher && `Викладач: ${esc(extra.teacher)}`,
+    extra.bookings && extra.bookings.length
+      ? `Записи учня: ${esc(extra.bookings.join(', '))}`
+      : 'Час заняття учень обере в графіку після підтвердження оплати.',
     site() && `Підтвердити оплату: ${site()}/admin/orders`,
   ]),
   paid: (o, u, productName) => send([

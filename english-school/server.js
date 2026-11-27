@@ -655,7 +655,14 @@ app.post('/pay/:product', requireUser, (req, res) => {
   const contact = `${t('uk', `messenger.${method}`)}: ${value}`;
   const existing = db.orders.forUser(req.user.id).find((o) => o.product === product.id && o.status === 'pending');
   const order = db.orders.create(req.user.id, product, contact);
-  if (!existing) notify.events.order(order, req.user, views.productName(product.id, 'uk'));
+  if (!existing) {
+    const upcoming = db.bookings.upcoming({ from: slots.now(), studentId: req.user.id });
+    const teacher = req.user.teacher_id ? db.users.byId(req.user.teacher_id) : null;
+    notify.events.order(order, req.user, views.productName(product.id, 'uk'), {
+      teacher: teacher && teacher.name,
+      bookings: upcoming.map((b) => `${bookingLine(b)}${b.kind === 'trial' ? ' (пробний)' : ''}`),
+    });
+  }
   res.redirect(`/checkout/${order.id}`);
 });
 
