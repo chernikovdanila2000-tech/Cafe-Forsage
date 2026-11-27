@@ -177,7 +177,7 @@ test('учень бачить вільні дні викладача в карт
   assert.match(dash, new RegExp(`class="btn btn-accent" href="/schedule/${ids.teacher}"`));
   const page = (await fresh.request(`/schedule/${ids.teacher}`)).text;
   assert.match(plain(page), /Оберіть час для пробного уроку/);
-  assert.match(page, /data-confirm="Записатися на безкоштовний пробний урок \(30 хв\): /);
+  assert.match(page, /data-confirm="[^"]+ · \d\d:00 · 30 хв" data-confirm-title="Безкоштовний пробний урок"/);
 });
 
 test('кнопка «Вільний час»: сторінка для гостя, учня без оплати й запис до іншого викладача', async () => {

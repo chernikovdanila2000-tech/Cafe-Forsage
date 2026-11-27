@@ -159,7 +159,7 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=19">
+<link rel="stylesheet" href="/styles.css?v=20">
 ${analytics(events)}
 </head>
 <body class="${h(bodyClass)}">
@@ -211,7 +211,7 @@ ${body}
   </div>
   <div class="container footer-bottom">© ${new Date().getFullYear()} ${h(name)}. ${T('footer.rights')}</div>
 </footer>
-<script src="/app.js?v=8" defer></script>
+<script src="/app.js?v=9" defer></script>
 </body>
 </html>`;
 }
@@ -520,12 +520,14 @@ function slotGrid(days, lang, { bookable, teacherId, trial = false, max = 1 }) {
     if (s.status === 'taken') return `<span class="slot slot-taken" title="${h(T('slot.taken'))}">${s.time} <small>${T('slot.taken')}</small></span>`;
     if (s.status === 'mine') return `<span class="slot slot-mine">${s.time} <small>${T('slot.mine')}</small></span>`;
     // Перед записом — підтвердження з датою й часом, щоб було зрозуміло, на що саме записуєтеся.
-    const ask = t(lang, trial ? 'trial.confirm' : 'book.confirm', { when: `${capital(dayLabel(date, lang))}, ${s.time}`, min: config.trialMinutes });
+    const when = `${capital(dayLabel(date, lang))} · ${s.time}`;
+    const ask = trial ? `${when} · ${config.trialMinutes} ${t(lang, 'unit.min')}` : `${when} · ${config.lessonDuration} ${t(lang, 'unit.min')}`;
+    const askAttrs = `data-confirm="${h(ask)}" data-confirm-title="${h(t(lang, trial ? 'confirm.trialTitle' : 'confirm.lessonTitle'))}" data-confirm-ok="${h(t(lang, 'confirm.book'))}" data-confirm-icon="${trial ? 'gift' : 'calendar'}"`;
     if (multi) return `<label class="slot slot-pick"><input type="checkbox" name="slot" value="${date}|${s.time}" data-when="${h(`${capital(dayLabel(date, lang))}, ${s.time}`)}"> ${s.time}</label>`;
-    return bookable ? `<button class="slot${trial ? ' slot-trial' : ''}" name="slot" value="${date}|${s.time}" data-confirm="${h(ask)}">${s.time}</button>` : `<span class="slot slot-view">${s.time}</span>`;
+    return bookable ? `<button class="slot${trial ? ' slot-trial' : ''}" name="slot" value="${date}|${s.time}" ${askAttrs}>${s.time}</button>` : `<span class="slot slot-view">${s.time}</span>`;
   };
   return `
-    <form method="post" action="/book" class="slots"${multi ? ` data-multi="${max}" data-confirm-many="${h(t(lang, 'book.confirmMany'))}"` : ''}>
+    <form method="post" action="/book" class="slots"${multi ? ` data-multi="${max}" data-confirm-many="${h(t(lang, 'book.confirmMany'))}" data-confirm-ok="${h(t(lang, 'confirm.book'))}"` : ''}>
       ${multi ? `<p class="small slots-hint">${t(lang, 'book.multiHint', { n: max })}</p>` : ''}
       ${teacherId ? `<input type="hidden" name="teacher_id" value="${teacherId}">` : ''}
       ${days.map((d) => `
@@ -546,7 +548,7 @@ const hasFree = (days) => days.some((d) => d.times.some((s) => s.status === 'fre
 
 // «Скасувати» для неоплаченого замовлення.
 const cancelOrderButton = (order, lang) => `
-  <form method="post" action="/orders/${order.id}/cancel" data-confirm="${h(t(lang, 'order.cancelConfirm', { id: order.id }))}">
+  <form method="post" action="/orders/${order.id}/cancel" data-confirm="${h(t(lang, 'order.cancelConfirm', { id: order.id }))}" data-confirm-danger>
     <button class="btn btn-small btn-ghost" type="submit">${t(lang, 'order.cancel')}</button>
   </form>`;
 
@@ -618,7 +620,7 @@ function dashboard(ctx, { balance, orders, teacher, teachers = [], upcoming = []
               ${b.kind === 'trial' ? `<span class="tag tag-accent">${T('trial.badge', { min: config.trialMinutes })}</span>` : ''}
               <span class="muted small">${h(b.teacher_name)}</span>
               ${b.canCancel
-                ? `<form method="post" action="/bookings/${b.id}/cancel" data-confirm="${h(T('book.confirmCancel'))}"><button class="btn btn-small btn-ghost">${T('book.cancel')}</button></form>`
+                ? `<form method="post" action="/bookings/${b.id}/cancel" data-confirm="${h(T('book.confirmCancel'))}" data-confirm-danger><button class="btn btn-small btn-ghost">${T('book.cancel')}</button></form>`
                 : `<span class="muted small">${T('book.cancelLate')}</span>`}
             </div>`).join('')}
         </div>` : ''}
@@ -921,7 +923,7 @@ function adminLayout(ctx, active, { title, content, counts = {}, notice, error }
   return layout(ctx, { title, body, bodyClass: 'page-app', noindex: true, notice, error });
 }
 
-const del = (action, lang) => `<form method="post" action="${action}" data-confirm="${h(t(lang, 'admin.confirmDelete'))}"><button class="btn btn-small btn-ghost">${t(lang, 'admin.delete')}</button></form>`;
+const del = (action, lang) => `<form method="post" action="${action}" data-confirm="${h(t(lang, 'admin.confirmDelete'))}" data-confirm-danger><button class="btn btn-small btn-ghost">${t(lang, 'admin.delete')}</button></form>`;
 
 const tel = (phone) => (phone ? `<a href="tel:${h(phone.replace(/[^+\d]/g, ''))}">${h(phone)}</a>` : '—');
 
@@ -1333,7 +1335,7 @@ function bookingsTable(list, lang, { showTeacher }) {
             <td>${h(b.student_name)}<br><span class="muted small">${h(b.student_email)}</span></td>
             <td class="nowrap">${tel(b.student_phone)}</td>
             ${showTeacher ? `<td>${h(b.teacher_name)}</td>` : ''}
-            <td class="actions"><form method="post" action="/bookings/${b.id}/cancel" data-confirm="${h(T('book.confirmCancel'))}"><button class="btn btn-small btn-ghost">${T('book.cancel')}</button></form></td>
+            <td class="actions"><form method="post" action="/bookings/${b.id}/cancel" data-confirm="${h(T('book.confirmCancel'))}" data-confirm-danger><button class="btn btn-small btn-ghost">${T('book.cancel')}</button></form></td>
           </tr>`).join('')}
         </tbody>
       </table>
