@@ -159,7 +159,7 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=16">
+<link rel="stylesheet" href="/styles.css?v=17">
 ${analytics(events)}
 </head>
 <body class="${h(bodyClass)}">
@@ -211,7 +211,7 @@ ${body}
   </div>
   <div class="container footer-bottom">© ${new Date().getFullYear()} ${h(name)}. ${T('footer.rights')}</div>
 </footer>
-<script src="/app.js?v=6" defer></script>
+<script src="/app.js?v=7" defer></script>
 </body>
 </html>`;
 }
@@ -386,7 +386,7 @@ ${teachers.length ? `
           ${teacher.about ? `<p class="muted">${h(teacher.about)}</p>` : ''}
           ${teacher.accountId ? `
           <div class="teacher-actions">
-            <a class="btn btn-small btn-accent" href="/schedule/${teacher.accountId}">${T('trial.button')}</a>
+            <a class="btn btn-small btn-accent" href="${ctx.user ? `/schedule/${teacher.accountId}` : `/register?next=${encodeURIComponent(`/schedule/${teacher.accountId}`)}`}">${T('trial.button')}</a>
             <a class="btn btn-small btn-ghost teacher-slots" href="/schedule/${teacher.accountId}">${icon.clock} ${T('schedule.button')}</a>
           </div>` : ''}
         </article>`).join('')}
@@ -512,12 +512,14 @@ function forgot(ctx) {
 // ---------- Особистий кабінет ----------
 
 // Графік годин: вільні — кнопки запису (або просто перегляд), зайняті — червоні, свій запис — лавандовий.
-function slotGrid(days, lang, { bookable, teacherId }) {
+function slotGrid(days, lang, { bookable, teacherId, trial = false }) {
   const T = (key) => t(lang, key);
   const chip = (date, s) => {
     if (s.status === 'taken') return `<span class="slot slot-taken" title="${h(T('slot.taken'))}">${s.time} <small>${T('slot.taken')}</small></span>`;
     if (s.status === 'mine') return `<span class="slot slot-mine">${s.time} <small>${T('slot.mine')}</small></span>`;
-    return bookable ? `<button class="slot" name="slot" value="${date}|${s.time}">${s.time}</button>` : `<span class="slot slot-view">${s.time}</span>`;
+    // Перед записом — підтвердження з датою й часом, щоб було зрозуміло, на що саме записуєтеся.
+    const ask = t(lang, trial ? 'trial.confirm' : 'book.confirm', { when: `${capital(dayLabel(date, lang))}, ${s.time}`, min: config.trialMinutes });
+    return bookable ? `<button class="slot${trial ? ' slot-trial' : ''}" name="slot" value="${date}|${s.time}" data-confirm="${h(ask)}">${s.time}</button>` : `<span class="slot slot-view">${s.time}</span>`;
   };
   return `
     <form method="post" action="/book" class="slots">
@@ -577,6 +579,17 @@ function dashboard(ctx, { balance, orders, teacher, teachers = [], upcoming = []
       </div>
     </div>` : ''}
 
+    ${trial && !upcoming.length && (!teacher || !hasSchedule) ? `
+    <div class="panel booking booking-trial-panel" id="trial-book">
+      <h2 class="panel-title">🎁 ${T('trial.panelTitle', { min: config.trialMinutes })}</h2>
+      <p class="muted small">${T('trial.about', { min: config.trialMinutes })}</p>
+      <p class="small"><b>${T('trial.panelStep')}</b></p>
+      <div class="trial-teachers">
+        ${teachers.filter((tch) => tch.days && tch.days.length).map((tch) => `
+        <a class="btn btn-accent" href="/schedule/${tch.id}">${T('trial.pickTeacher', { name: tch.name })}</a>`).join('') || `<p class="muted small">${T('trial.noTeachers')}</p>`}
+      </div>
+    </div>` : ''}
+
     ${teacher ? `
     <div class="panel booking" id="book">
       <h2 class="panel-title">${T('book.title')}</h2>
@@ -597,7 +610,7 @@ function dashboard(ctx, { balance, orders, teacher, teachers = [], upcoming = []
       ${!hasSchedule ? `<p class="booking-note">${T('book.noSchedule')}</p>` : `
         ${canBook > 0 ? `<p class="small"><b>${T('book.left', { n: canBook })}</b></p>` : trial ? trialNote(lang) : `<p class="booking-note">${T('book.payFirst')}</p>`}
         ${!hasFree(freeSlots) ? `<p class="booking-note">${T('book.noFree')}</p>` : ''}
-        ${freeSlots.length ? slotGrid(freeSlots, lang, { bookable: canBook > 0 || trial }) : ''}`}
+        ${freeSlots.length ? slotGrid(freeSlots, lang, { bookable: canBook > 0 || trial, trial: canBook <= 0 && trial }) : ''}`}
     </div>` : ''}
 
     ${teachers.length ? `
@@ -1234,12 +1247,12 @@ function schedulePage(ctx, { teacher, hasSchedule, freeSlots, student, canBook, 
       </div>
     </div>
     <div class="panel booking">
-      <h2 class="panel-title">${T('schedule.title')}</h2>
+      <h2 class="panel-title">${student && canBook <= 0 && trial ? `🎁 ${T('trial.scheduleTitle')}` : T('schedule.title')}</h2>
       <p class="muted small">${T('book.lead')}</p>
       ${note}
       ${!hasSchedule ? `<p class="booking-note">${T('schedule.empty')}</p>` : `
         ${!hasFree(freeSlots) ? `<p class="booking-note">${T('book.noFree')}</p>` : ''}
-        ${freeSlots.length ? slotGrid(freeSlots, lang, { bookable, teacherId: teacher.id }) : ''}`}
+        ${freeSlots.length ? slotGrid(freeSlots, lang, { bookable, teacherId: teacher.id, trial: student && canBook <= 0 && trial }) : ''}`}
     </div>
   </div>
 </section>`;

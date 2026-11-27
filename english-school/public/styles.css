@@ -634,3 +634,6 @@ button.slot:active { background: var(--ink); color: #fff; }
 .booking-row .tag { align-self: center; }
 .teacher-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 16px; }
 .teacher .teacher-actions .teacher-slots { margin-top: 0; }
+.booking-trial-panel { border: 2px solid var(--accent); }
+.trial-teachers { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.slot.slot-trial { border-color: var(--accent); }

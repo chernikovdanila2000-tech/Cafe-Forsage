@@ -19,3 +19,10 @@ document.querySelectorAll('form[data-confirm]').forEach((form) => {
     if (!window.confirm(form.dataset.confirm)) event.preventDefault();
   });
 });
+
+// Підтвердження запису на конкретний час (кнопки годин у графіку)
+document.querySelectorAll('button[data-confirm]').forEach((button) => {
+  button.addEventListener('click', (event) => {
+    if (!window.confirm(button.dataset.confirm)) event.preventDefault();
+  });
+});

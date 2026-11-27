@@ -170,7 +170,14 @@ test('пробний — лише якщо занять ще не було (на
 test('учень бачить вільні дні викладача в картці вибору', async () => {
   const fresh = browser();
   await register(fresh, 'Новий', 'fresh@test.ua');
-  assert.match(plain((await fresh.request('/dashboard')).text), /Вільні дні: пн, вт, ср, чт, пт, сб, нд/);
+  const dash = (await fresh.request('/dashboard')).text;
+  assert.match(plain(dash), /Вільні дні: пн, вт, ср, чт, пт, сб, нд/);
+  // Новий учень одразу бачить, як записатися на пробний урок.
+  assert.match(plain(dash), /Ваш безкоштовний пробний урок — 30 хв/);
+  assert.match(dash, new RegExp(`class="btn btn-accent" href="/schedule/${ids.teacher}"`));
+  const page = (await fresh.request(`/schedule/${ids.teacher}`)).text;
+  assert.match(plain(page), /Оберіть час для пробного уроку/);
+  assert.match(page, /data-confirm="Записатися на безкоштовний пробний урок \(30 хв\): /);
 });
 
 test('кнопка «Вільний час»: сторінка для гостя, учня без оплати й запис до іншого викладача', async () => {
