@@ -752,6 +752,46 @@ function verifyPhone(ctx, { next = '/dashboard', error, notice }) {
   return layout(ctx, { title: T('verify.title'), body, bodyClass: 'page-auth', noindex: true });
 }
 
+// Вибір месенджера й нік/номер — перед оплатою й перед пробним уроком.
+function messengerFields(lang, { messengers, method, value, error, lead }) {
+  const T = (key) => t(lang, key);
+  return `
+      <p class="checkout-label">${T('pay.contactTitle')}</p>
+      <p class="muted small">${lead}</p>
+      ${error ? `<div class="flash flash-error">${h(error)}</div>` : ''}
+      <div class="messenger-options">
+        ${messengers.map((m) => `
+        <label class="messenger"><input type="radio" name="contact_method" value="${m}"${m === method ? ' checked' : ''} required> <span>${T(`messenger.${m}`)}</span></label>`).join('')}
+      </div>
+      <label>${T('pay.contactValue')}<input name="contact_value" value="${h(value)}" maxlength="100" required placeholder="${h(T('pay.contactPlaceholder'))}" autocomplete="tel"></label>`;
+}
+
+// Пробний урок: перед записом уточнюємо, де з учнем зв'язатися.
+function trialContact(ctx, { slot, teacherId, teacherName, messengers, values = {}, error, back }) {
+  const { lang, user } = ctx;
+  const T = (key, vars) => t(lang, key, vars);
+  const [date, time] = slot.split('|');
+  const method = values.method || user.contact_method || 'telegram';
+  const value = values.value ?? user.contact_value ?? '';
+  const body = `
+<section class="auth">
+  <div class="auth-card checkout">
+    <p class="eyebrow">🎁 ${T('confirm.trialTitle')}</p>
+    <h1>${h(capital(dayLabel(date, lang)))} · ${h(time)}</h1>
+    <div class="checkout-row"><span>${T('trial.with')}</span><b>${h(teacherName)}</b></div>
+    <div class="checkout-row"><span>${T('trial.duration')}</span><b>${config.trialMinutes} ${T('unit.min')} · ${money(0, lang)}</b></div>
+    <form method="post" action="/book" class="form">
+      <input type="hidden" name="slot" value="${h(slot)}">
+      ${teacherId ? `<input type="hidden" name="teacher_id" value="${h(teacherId)}">` : ''}
+      ${messengerFields(lang, { messengers, method, value, error, lead: T('trial.contactLead') })}
+      <button class="btn btn-accent btn-block" type="submit">${T('trial.contactSubmit')}</button>
+    </form>
+    <p class="auth-switch"><a class="btn btn-ghost btn-small" href="${h(back)}">${T('order.cancel')}</a></p>
+  </div>
+</section>`;
+  return layout(ctx, { title: T('confirm.trialTitle'), body, bodyClass: 'page-auth', noindex: true });
+}
+
 // Перед оплатою: куди з учнем зв'язуватися.
 function payContact(ctx, { product, messengers, values = {}, error }) {
   const { lang, user } = ctx;
@@ -765,14 +805,7 @@ function payContact(ctx, { product, messengers, values = {}, error }) {
     <h1>${h(productName(product.id, lang))}</h1>
     <div class="checkout-row checkout-total"><span>${T('checkout.total')}</span><b>${money(product.price, lang)}</b></div>
     <form method="post" action="/pay/${product.id}" class="form">
-      <p class="checkout-label">${T('pay.contactTitle')}</p>
-      <p class="muted small">${T('pay.contactLead')}</p>
-      ${error ? `<div class="flash flash-error">${h(error)}</div>` : ''}
-      <div class="messenger-options">
-        ${messengers.map((m) => `
-        <label class="messenger"><input type="radio" name="contact_method" value="${m}"${m === method ? ' checked' : ''} required> <span>${T(`messenger.${m}`)}</span></label>`).join('')}
-      </div>
-      <label>${T('pay.contactValue')}<input name="contact_value" value="${h(value)}" maxlength="100" required placeholder="${h(T('pay.contactPlaceholder'))}" autocomplete="tel"></label>
+      ${messengerFields(lang, { messengers, method, value, error, lead: T('pay.contactLead') })}
       <button class="btn btn-accent btn-block" type="submit">${T('pay.continue')}</button>
     </form>
     <p class="auth-switch"><a class="btn btn-ghost btn-small" href="/dashboard">${T('order.cancel')}</a></p>
@@ -1333,7 +1366,7 @@ function bookingsTable(list, lang, { showTeacher }) {
           <tr>
             <td class="nowrap"><b>${h(capital(dayLabel(b.date, lang)))}</b> · ${h(b.time)}${b.kind === 'trial' ? `<br><span class="tag tag-accent">${t(lang, 'trial.badge', { min: config.trialMinutes })}</span>` : ''}</td>
             <td>${h(b.student_name)}<br><span class="muted small">${h(b.student_email)}</span></td>
-            <td class="nowrap">${tel(b.student_phone)}</td>
+            <td class="nowrap">${tel(b.student_phone)}${b.contact ? `<br><span class="small">${h(b.contact)}</span>` : ''}</td>
             ${showTeacher ? `<td>${h(b.teacher_name)}</td>` : ''}
             <td class="actions"><form method="post" action="/bookings/${b.id}/cancel" data-confirm="${h(T('book.confirmCancel'))}" data-confirm-danger><button class="btn btn-small btn-ghost">${T('book.cancel')}</button></form></td>
           </tr>`).join('')}
@@ -1425,6 +1458,6 @@ function adminSchedule(ctx, { upcoming, teachers, counts }) {
 module.exports = {
   home, thanks, authPage, forgot, dashboard, checkout, account, legalPage, notFound, adminOnly,
   adminOverview, adminRequests, adminOrders, adminStudents, adminTeachers, adminReviews, adminSettings,
-  teacherHome, adminSchedule, schedulePage, payContact, verifyPhone,
+  teacherHome, adminSchedule, schedulePage, payContact, verifyPhone, trialContact,
   LEVEL_CODES, productName,
 };

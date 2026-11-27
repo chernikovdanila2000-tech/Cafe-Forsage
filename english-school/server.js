@@ -480,17 +480,36 @@ app.post('/book', requireUser, (req, res) => {
   if (!kind) return back('booking_no_lessons');
   const limit = kind === 'trial' ? 1 : info.canBook;
   if (picked.length > limit) return back('booking_too_many');
+  // Пробний урок: спершу питаємо, де з учнем зв'язатися.
+  let contact = null;
+  if (kind === 'trial') {
+    const method = String(req.body.contact_method || '');
+    const value = field(req.body.contact_value, 100);
+    if (!MESSENGERS.includes(method) || !value) {
+      const [date, time] = picked[0];
+      if (!slots.isFree(teacherId, date, time)) return back('booking_taken');
+      const teacherName = (db.users.byId(teacherId) || {}).name || '';
+      const asked = 'contact_method' in req.body || 'contact_value' in req.body;
+      return res.status(asked ? 400 : 200).send(views.trialContact(ctx(req), {
+        slot: `${date}|${time}`, teacherId: fromSchedule ? teacherId : null, teacherName, messengers: MESSENGERS,
+        values: asked ? { method, value } : {}, error: asked ? t(req.lang, 'pay.contactRequired') : null,
+        back: fromSchedule ? `/schedule/${teacherId}` : '/dashboard#book',
+      }));
+    }
+    db.users.setContact(user.id, method, value);
+    contact = `${t('uk', `messenger.${method}`)}: ${value}`;
+  }
   const made = [];
   for (const [date, time] of picked) {
     if (!slots.isFree(teacherId, date, time)) continue;
-    const id = db.bookings.create({ teacherId, studentId: user.id, date, time, kind });
+    const id = db.bookings.create({ teacherId, studentId: user.id, date, time, kind, contact });
     if (id) made.push(db.bookings.byId(id));
   }
   if (!made.length) return back('booking_taken');
   if (teacherId !== user.teacher_id) db.users.assignTeacher(user.id, teacherId);
   const b = made[0];
   const title = kind === 'trial' ? `🎁 <b>Новий запис на пробний урок</b> (безкоштовно, ${config.trialMinutes} хв)` : `📅 <b>Новий запис на заняття</b>${made.length > 1 ? ` (${made.length})` : ''}`;
-  notify.send([title, ...made.map((x) => `${bookingLine(x)} · ${x.teacher_name}`), `Учень: ${b.student_name} · ${b.student_phone || b.student_email}`]
+  notify.send([title, ...made.map((x) => `${bookingLine(x)} · ${x.teacher_name}`), `Учень: ${b.student_name} · ${b.student_phone || b.student_email}`, contact && `Зв'язок: ${contact}`].filter(Boolean)
     .map((line, i) => (i ? line.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]) : line)));
   if (made.length < picked.length) return back('booked_partly');
   back(kind === 'trial' ? 'booked_trial' : made.length > 1 ? 'booked_many' : 'booked');

@@ -70,16 +70,25 @@ test('без оплати — один безкоштовний пробний �
   const free = slotsOf(dash);
   assert.ok(free.length > 0, 'на пробний можна обрати час');
   site.telegram.messages.length = 0;
-  const r = await student.request('/book', { method: 'POST', form: { slot: free.at(-30) } });
+  // Спершу — питання, де зв'язатися; без месенджера запису немає.
+  const ask = await student.request('/book', { method: 'POST', form: { slot: free.at(-30) } });
+  assert.equal(ask.status, 200);
+  assert.match(plain(ask.text), /Де з вами зручніше зв'язатися\?/);
+  assert.match(ask.text, new RegExp(`name="slot" value="${free.at(-30).replace('|', '\\|')}"`));
+  const empty = await student.request('/book', { method: 'POST', form: { slot: free.at(-30), contact_method: 'viber', contact_value: '' } });
+  assert.equal(empty.status, 400);
+  assert.doesNotMatch(plain((await student.request('/dashboard')).text), /Пробний · 30 хв/);
+  const r = await student.request('/book', { method: 'POST', form: { slot: free.at(-30), contact_method: 'viber', contact_value: '+380501234567' } });
   assert.equal(r.location, '/dashboard?msg=booked_trial#book');
   await new Promise((res) => setTimeout(res, 200));
-  assert.ok(site.telegram.messages.some((m) => m.includes('пробний урок') && m.includes('Максим')));
+  assert.ok(site.telegram.messages.some((m) => m.includes('пробний урок') && m.includes('Максим') && m.includes('Зв\'язок: Viber: +380501234567')));
+  assert.match(plain((await admin.request('/admin/schedule')).text), /Viber: \+380501234567/);
   const after = (await student.request('/dashboard')).text;
   assert.match(plain(after), /Пробний · 30 хв/);
   // Другий пробний — не можна: далі тільки після оплати.
   assert.match(plain(after), /оплатіть разове заняття або абонемент/);
   assert.equal(slotsOf(after).length, 0);
-  const again = await student.request('/book', { method: 'POST', form: { slot: free.at(-29) } });
+  const again = await student.request('/book', { method: 'POST', form: { slot: free.at(-29), contact_method: 'viber', contact_value: '+380501234567' } });
   assert.match(again.location, /booking_no_lessons/);
   // Викладач і адмін бачать пробний урок в окремому блоці.
   assert.match(plain((await teacher.request('/teacher')).text), /Пробні уроки \(1\).*Пробний · 30 хв.*Максим/);

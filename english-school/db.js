@@ -138,6 +138,7 @@ addColumn('bookings', 'kind', "TEXT NOT NULL DEFAULT 'lesson'");
 addColumn('users', 'contact_method', 'TEXT');
 addColumn('users', 'contact_value', 'TEXT');
 addColumn('orders', 'contact', 'TEXT');
+addColumn('bookings', 'contact', 'TEXT');
 // Підтвердження номера телефону кодом з SMS.
 addColumn('users', 'phone_verified', 'INTEGER NOT NULL DEFAULT 0');
 db.exec(`
@@ -425,9 +426,9 @@ const BOOKING_JOIN = 'FROM bookings b JOIN users s ON s.id = b.student_id JOIN u
 
 const bookings = {
   // Повертає id запису або null, якщо цей час уже зайняли.
-  create({ teacherId, studentId, date, time, kind = 'lesson' }) {
+  create({ teacherId, studentId, date, time, kind = 'lesson', contact = null }) {
     try {
-      return Number(db.prepare('INSERT INTO bookings (teacher_id, student_id, date, time, kind) VALUES (?, ?, ?, ?, ?)').run(teacherId, studentId, date, time, kind).lastInsertRowid);
+      return Number(db.prepare('INSERT INTO bookings (teacher_id, student_id, date, time, kind, contact) VALUES (?, ?, ?, ?, ?, ?)').run(teacherId, studentId, date, time, kind, contact).lastInsertRowid);
     } catch (err) {
       if (/UNIQUE/.test(err.message)) return null;
       throw err;
