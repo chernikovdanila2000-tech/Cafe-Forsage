@@ -470,20 +470,30 @@ app.post('/book', requireUser, (req, res) => {
   if (!teacherId) return res.redirect('/dashboard');
   const fromSchedule = Boolean(req.body.teacher_id);
   const back = (msg) => res.redirect(fromSchedule ? `/schedule/${teacherId}?msg=${msg}` : `/dashboard?msg=${msg}#book`);
-  const [date, time] = String(req.body.slot || '').split('|');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '') || !slots.HOURS.includes(time)) return back('booking_taken');
+  // Можна обрати одразу кілька годин (стільки, скільки оплачених занять лишилося).
+  const picked = [...new Set([].concat(req.body.slot || []).map(String))].slice(0, 20)
+    .map((v) => v.split('|'))
+    .filter(([date, time]) => /^\d{4}-\d{2}-\d{2}$/.test(date || '') && slots.HOURS.includes(time));
+  if (!picked.length) return back('booking_taken');
   const info = bookingInfo(user);
   const kind = info.canBook > 0 ? 'lesson' : info.trial ? 'trial' : null;
   if (!kind) return back('booking_no_lessons');
-  if (!slots.isFree(teacherId, date, time)) return back('booking_taken');
-  const id = db.bookings.create({ teacherId, studentId: user.id, date, time, kind });
-  if (!id) return back('booking_taken');
+  const limit = kind === 'trial' ? 1 : info.canBook;
+  if (picked.length > limit) return back('booking_too_many');
+  const made = [];
+  for (const [date, time] of picked) {
+    if (!slots.isFree(teacherId, date, time)) continue;
+    const id = db.bookings.create({ teacherId, studentId: user.id, date, time, kind });
+    if (id) made.push(db.bookings.byId(id));
+  }
+  if (!made.length) return back('booking_taken');
   if (teacherId !== user.teacher_id) db.users.assignTeacher(user.id, teacherId);
-  const b = db.bookings.byId(id);
-  const title = kind === 'trial' ? `🎁 <b>Новий запис на пробний урок</b> (безкоштовно, ${config.trialMinutes} хв)` : '📅 <b>Новий запис на заняття</b>';
-  notify.send([title, `${bookingLine(b)} · ${b.teacher_name}`, `Учень: ${b.student_name} · ${b.student_phone || b.student_email}`]
+  const b = made[0];
+  const title = kind === 'trial' ? `🎁 <b>Новий запис на пробний урок</b> (безкоштовно, ${config.trialMinutes} хв)` : `📅 <b>Новий запис на заняття</b>${made.length > 1 ? ` (${made.length})` : ''}`;
+  notify.send([title, ...made.map((x) => `${bookingLine(x)} · ${x.teacher_name}`), `Учень: ${b.student_name} · ${b.student_phone || b.student_email}`]
     .map((line, i) => (i ? line.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]) : line)));
-  back(kind === 'trial' ? 'booked_trial' : 'booked');
+  if (made.length < picked.length) return back('booked_partly');
+  back(kind === 'trial' ? 'booked_trial' : made.length > 1 ? 'booked_many' : 'booked');
 });
 
 // Скасування: учень — не пізніше ніж за 24 год; викладач — свої записи; адміністратор — будь-які.
@@ -645,6 +655,17 @@ app.get('/checkout/:id', requireUser, (req, res) => {
   }
   const mode = config.demoPayments ? 'demo' : config.paymentDetails ? 'details' : 'manual';
   res.send(views.checkout(ctx(req), { product, order, mode }));
+});
+
+// Учень скасовує своє неоплачене замовлення.
+app.post('/orders/:id/cancel', requireUser, (req, res) => {
+  const order = db.orders.byId(Number(req.params.id));
+  if (!order || order.user_id !== req.user.id) return notFound(req, res);
+  if (order.status === 'pending') {
+    db.orders.cancel(order.id);
+    notify.send([`🚫 <b>Замовлення № ${order.id} скасовано</b> учнем`, `${req.user.name} · ${order.amount} ₴`.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c])]);
+  }
+  res.redirect('/dashboard?msg=order_cancelled');
 });
 
 // Демо-оплата — лише для перевірки сайту на своєму комп'ютері (на робочому сервері вимкнена).

@@ -222,3 +222,36 @@ test('кнопка «Вільний час»: сторінка для гостя
   assert.match((await nobody.request('/dashboard')).text, /href="\/schedule\/\d+"/);
   assert.equal((await browser().request(`/schedule/${ids.student}`)).status, 404);
 });
+
+test('запис одразу на кілька годин і скасування неоплаченого замовлення', async () => {
+  const b = browser();
+  await b.request('/register', { method: 'POST', headers: { 'x-forwarded-for': '10.0.0.20' }, form: { name: 'Ліна', email: 'lina@test.ua', phone: '+380501234500', password: 'secret123', agree: '1' } });
+
+  // Неоплачене замовлення можна скасувати з кабінету.
+  const checkoutPage = (await checkout(b, 'single')).text;
+  const orderId = checkoutPage.match(/\/orders\/(\d+)\/cancel/)[1];
+  assert.match(plain((await b.request('/dashboard')).text), /Скасувати/);
+  const cancelled = await b.request(`/orders/${orderId}/cancel`, { method: 'POST' });
+  assert.equal(cancelled.location, '/dashboard?msg=order_cancelled');
+  assert.match(plain((await b.request('/dashboard')).text), /Скасовано/i);
+  assert.equal((await browser().request(`/orders/${orderId}/cancel`, { method: 'POST' })).location.startsWith('/login'), true);
+
+  // Абонемент — 8 занять: відмічаємо 4 години й записуємося одним натисканням.
+  await b.request('/choose-teacher', { method: 'POST', form: { teacher_id: String(ids.teacher) } });
+  await pay(b);
+  const dash = (await b.request('/dashboard')).text;
+  assert.match(dash, /data-multi="8"/);
+  assert.match(dash, /type="checkbox" name="slot"/);
+  const four = slotsOf(dash).slice(-8, -4);
+  const body = new URLSearchParams(four.map((s) => ['slot', s])).toString();
+  const r = await b.request('/book', { method: 'POST', body, headers: { 'content-type': 'application/x-www-form-urlencoded' } });
+  assert.equal(r.location, '/dashboard?msg=booked_many#book');
+  const after = (await b.request('/dashboard')).text;
+  assert.match(plain(after), /Можна записатися ще на занять: 4/);
+  assert.equal((after.match(/slot slot-mine/g) || []).length, 4);
+
+  // Більше, ніж лишилося оплачених, — відмова.
+  const five = slotsOf(after).slice(0, 5);
+  const tooMany = await b.request('/book', { method: 'POST', body: new URLSearchParams(five.map((s) => ['slot', s])).toString(), headers: { 'content-type': 'application/x-www-form-urlencoded' } });
+  assert.match(tooMany.location, /booking_too_many/);
+});

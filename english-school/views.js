@@ -23,7 +23,7 @@ const LEVEL_CODES = ['unknown', 'A1', 'A2', 'B1', 'B2', 'C1'];
 const MESSAGE_TYPES = {
   registered: 'success', loggedout: 'info', login_required: 'info', profile_saved: 'success',
   password_changed: 'success', paid: 'success', payment_pending: 'success', too_many: 'error', teacher_chosen: 'success',
-  booked: 'success', booked_trial: 'success', booking_cancelled: 'info', booking_taken: 'error', booking_no_lessons: 'error', booking_too_late: 'error',
+  booked: 'success', booked_trial: 'success', booked_many: 'success', booked_partly: 'info', booking_too_many: 'error', order_cancelled: 'info', booking_cancelled: 'info', booking_taken: 'error', booking_no_lessons: 'error', booking_too_late: 'error',
   'teacher.scheduleSaved': 'success', 'teacher.bookingCancelled': 'info', 'admin.bookingCancelled': 'info',
   'admin.saved': 'success', 'admin.deleted': 'info', 'admin.held': 'success', 'admin.undone': 'info',
   'admin.confirmed': 'success', 'admin.cancelled': 'info', 'admin.settings.tgTestSent': 'success',
@@ -159,7 +159,7 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=18">
+<link rel="stylesheet" href="/styles.css?v=19">
 ${analytics(events)}
 </head>
 <body class="${h(bodyClass)}">
@@ -211,7 +211,7 @@ ${body}
   </div>
   <div class="container footer-bottom">© ${new Date().getFullYear()} ${h(name)}. ${T('footer.rights')}</div>
 </footer>
-<script src="/app.js?v=7" defer></script>
+<script src="/app.js?v=8" defer></script>
 </body>
 </html>`;
 }
@@ -512,28 +512,43 @@ function forgot(ctx) {
 // ---------- Особистий кабінет ----------
 
 // Графік годин: вільні — кнопки запису (або просто перегляд), зайняті — червоні, свій запис — лавандовий.
-function slotGrid(days, lang, { bookable, teacherId, trial = false }) {
+function slotGrid(days, lang, { bookable, teacherId, trial = false, max = 1 }) {
+  // Кілька оплачених занять — можна відмітити кілька годин і записатися одним натисканням.
+  const multi = bookable && !trial && max > 1;
   const T = (key) => t(lang, key);
   const chip = (date, s) => {
     if (s.status === 'taken') return `<span class="slot slot-taken" title="${h(T('slot.taken'))}">${s.time} <small>${T('slot.taken')}</small></span>`;
     if (s.status === 'mine') return `<span class="slot slot-mine">${s.time} <small>${T('slot.mine')}</small></span>`;
     // Перед записом — підтвердження з датою й часом, щоб було зрозуміло, на що саме записуєтеся.
     const ask = t(lang, trial ? 'trial.confirm' : 'book.confirm', { when: `${capital(dayLabel(date, lang))}, ${s.time}`, min: config.trialMinutes });
+    if (multi) return `<label class="slot slot-pick"><input type="checkbox" name="slot" value="${date}|${s.time}" data-when="${h(`${capital(dayLabel(date, lang))}, ${s.time}`)}"> ${s.time}</label>`;
     return bookable ? `<button class="slot${trial ? ' slot-trial' : ''}" name="slot" value="${date}|${s.time}" data-confirm="${h(ask)}">${s.time}</button>` : `<span class="slot slot-view">${s.time}</span>`;
   };
   return `
-    <form method="post" action="/book" class="slots">
+    <form method="post" action="/book" class="slots"${multi ? ` data-multi="${max}" data-confirm-many="${h(t(lang, 'book.confirmMany'))}"` : ''}>
+      ${multi ? `<p class="small slots-hint">${t(lang, 'book.multiHint', { n: max })}</p>` : ''}
       ${teacherId ? `<input type="hidden" name="teacher_id" value="${teacherId}">` : ''}
       ${days.map((d) => `
         <div class="slot-day">
           <span class="slot-date">${h(capital(dayLabel(d.date, lang)))}</span>
           <div class="slot-times">${d.times.map((s) => chip(d.date, s)).join('')}</div>
         </div>`).join('')}
+    ${multi ? `
+      <div class="slots-submit">
+        <span class="slots-count" data-template="${h(t(lang, 'book.picked', { n: '{n}', max }))}">${t(lang, 'book.picked', { n: 0, max })}</span>
+        <button class="btn btn-accent" type="submit">${t(lang, 'book.submitMany')}</button>
+      </div>` : ''}
     </form>
     <p class="slot-legend"><span class="slot slot-view">10:00</span> ${T('slot.legendFree')} <span class="slot slot-taken">10:00</span> ${T('slot.legendTaken')}</p>`;
 }
 
 const hasFree = (days) => days.some((d) => d.times.some((s) => s.status === 'free'));
+
+// «Скасувати» для неоплаченого замовлення.
+const cancelOrderButton = (order, lang) => `
+  <form method="post" action="/orders/${order.id}/cancel" data-confirm="${h(t(lang, 'order.cancelConfirm', { id: order.id }))}">
+    <button class="btn btn-small btn-ghost" type="submit">${t(lang, 'order.cancel')}</button>
+  </form>`;
 
 // Підказка про безкоштовний пробний урок у блоці запису.
 const trialNote = (lang) => `
@@ -610,7 +625,7 @@ function dashboard(ctx, { balance, orders, teacher, teachers = [], upcoming = []
       ${!hasSchedule ? `<p class="booking-note">${T('book.noSchedule')}</p>` : `
         ${canBook > 0 ? `<p class="small"><b>${T('book.left', { n: canBook })}</b></p>` : trial ? trialNote(lang) : `<p class="booking-note">${T('book.payFirst')}</p>`}
         ${!hasFree(freeSlots) ? `<p class="booking-note">${T('book.noFree')}</p>` : ''}
-        ${freeSlots.length ? slotGrid(freeSlots, lang, { bookable: canBook > 0 || trial, trial: canBook <= 0 && trial }) : ''}`}
+        ${freeSlots.length ? slotGrid(freeSlots, lang, { bookable: canBook > 0 || trial, trial: canBook <= 0 && trial, max: canBook }) : ''}`}
     </div>` : ''}
 
     ${teachers.length ? `
@@ -646,7 +661,10 @@ function dashboard(ctx, { balance, orders, teacher, teachers = [], upcoming = []
         : `<p class="balance-empty">${T('dash.empty')}</p><p class="muted small">${T('dash.emptyHint')}</p>`}
         ${pendingLessons ? `
           <p class="pending-note">${h(T('dash.pendingNote', { n: lessonsLabel(pendingLessons, lang) }))}</p>
-          <a class="btn btn-small btn-ghost" href="/pay/${h(pending[0].product)}">${T('dash.payPending')}</a>` : ''}
+          <div class="pending-actions">
+            <a class="btn btn-small btn-accent" href="/checkout/${pending[0].id}">${T('dash.payPending')}</a>
+            ${cancelOrderButton(pending[0], lang)}
+          </div>` : ''}
       </div>
 
       <div class="panel buy-panel">
@@ -679,7 +697,7 @@ function dashboard(ctx, { balance, orders, teacher, teachers = [], upcoming = []
     <h2 class="dash-title">${T('dash.orders')}</h2>
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th>${T('table.product')}</th><th>${T('table.amount')}</th><th>${T('table.date')}</th><th>${T('table.status')}</th></tr></thead>
+        <thead><tr><th>${T('table.product')}</th><th>${T('table.amount')}</th><th>${T('table.date')}</th><th>${T('table.status')}</th><th></th></tr></thead>
         <tbody>
           ${orders.map((o) => `
           <tr>
@@ -687,6 +705,7 @@ function dashboard(ctx, { balance, orders, teacher, teachers = [], upcoming = []
             <td>${money(o.amount, lang)}</td>
             <td>${date(o.created_at, lang)}</td>
             <td><span class="pill pill-${h(o.status)}">${h(paymentStatus(o.status, lang))}</span></td>
+            <td class="actions">${o.status === 'pending' ? `<a class="btn btn-small btn-ghost" href="/checkout/${o.id}">${T('btn.pay')}</a>${cancelOrderButton(o, lang)}` : ''}</td>
           </tr>`).join('')}
         </tbody>
       </table>
@@ -754,7 +773,7 @@ function payContact(ctx, { product, messengers, values = {}, error }) {
       <label>${T('pay.contactValue')}<input name="contact_value" value="${h(value)}" maxlength="100" required placeholder="${h(T('pay.contactPlaceholder'))}" autocomplete="tel"></label>
       <button class="btn btn-accent btn-block" type="submit">${T('pay.continue')}</button>
     </form>
-    <p class="auth-switch"><a href="/dashboard">${T('checkout.back')}</a></p>
+    <p class="auth-switch"><a class="btn btn-ghost btn-small" href="/dashboard">${T('order.cancel')}</a></p>
   </div>
 </section>`;
   return layout(ctx, { title: T('checkout.eyebrow'), body, bodyClass: 'page-auth', noindex: true });
@@ -796,7 +815,7 @@ function checkout(ctx, { product, order, mode }) {
     <div class="checkout-row checkout-total"><span>${T('checkout.total')}</span><b>${money(order.amount, lang)}</b></div>
     ${action}
     <p class="legal-note">${T('checkout.legal')}</p>
-    <p class="auth-switch"><a href="/dashboard">${T('checkout.back')}</a></p>
+    <div class="checkout-cancel">${cancelOrderButton(order, lang)}<a href="/dashboard">${T('checkout.back')}</a></div>
   </div>
 </section>`;
   return layout(ctx, {
@@ -1294,7 +1313,7 @@ function schedulePage(ctx, { teacher, hasSchedule, freeSlots, student, canBook, 
       ${note}
       ${!hasSchedule ? `<p class="booking-note">${T('schedule.empty')}</p>` : `
         ${!hasFree(freeSlots) ? `<p class="booking-note">${T('book.noFree')}</p>` : ''}
-        ${freeSlots.length ? slotGrid(freeSlots, lang, { bookable, teacherId: teacher.id, trial: student && canBook <= 0 && trial }) : ''}`}
+        ${freeSlots.length ? slotGrid(freeSlots, lang, { bookable, teacherId: teacher.id, trial: student && canBook <= 0 && trial, max: canBook }) : ''}`}
     </div>
   </div>
 </section>`;

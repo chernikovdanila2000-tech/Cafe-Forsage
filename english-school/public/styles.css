@@ -643,3 +643,13 @@ button.slot:active { background: var(--ink); color: #fff; }
 .verify-change summary { cursor: pointer; color: var(--accent-dark); font-weight: 600; }
 .verify-change .form { margin-top: 12px; }
 .link-button { background: none; border: 0; padding: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; }
+.slot-pick { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.slot-pick input { margin: 0; accent-color: var(--accent); }
+.slot-pick.is-picked { background: var(--accent); border-color: var(--accent); color: #fff; }
+.slot-pick:has(input:disabled) { opacity: .45; cursor: not-allowed; }
+.slots-hint { margin: 0 0 8px; }
+.slots-submit { position: sticky; bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; padding: 12px 16px; border-radius: 14px; background: var(--surface); border: 1px solid var(--accent); box-shadow: 0 10px 24px -14px rgba(58,40,64,.35); }
+.slots-submit button:disabled { opacity: .5; cursor: not-allowed; }
+.pending-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.checkout-cancel { display: flex; justify-content: center; align-items: center; gap: 16px; margin-top: 16px; }
+.table .actions form { display: inline; }
